@@ -116,6 +116,24 @@ export interface HistoryEntry {
 	path?: string;
 }
 
+export interface SavedClip {
+	id: string;
+	createdAt: string;
+	url: string;
+	title: string;
+	description: string;
+	site: string;
+	author: string;
+	published: string;
+	faviconUrl: string;
+	imageUrl: string;
+	markdown: string;
+	templateId: string;
+	templateName: string;
+	vault: string;
+	path: string;
+}
+
 export interface ConversationMessage {
 	author: string;
 	content: string;

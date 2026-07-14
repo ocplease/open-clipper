@@ -582,6 +582,17 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return true;
 		}
 
+		if (typedRequest.action === "openClipperEditor" && typedRequest.tabId) {
+			browser.windows.create({
+				url: browser.runtime.getURL(`popup.html?context=library-editor&sourceTabId=${typedRequest.tabId}`),
+				type: 'popup',
+				width: 380,
+				height: 640
+			}).then(() => sendResponse({ success: true }))
+				.catch(error => sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) }));
+			return true;
+		}
+
 		if (typedRequest.action === "openHighlights") {
 			const domain = (typedRequest as any).domain;
 			const query = domain ? `?domain=${encodeURIComponent(domain)}` : '';

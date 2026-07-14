@@ -1066,6 +1066,33 @@
 			}
 		}
 	},
+	"clipLibraryTitle": { "message": "AI 网页剪藏" },
+	"searchClipsPlaceholder": { "message": "搜索剪藏" },
+	"filterClips": { "message": "筛选剪藏" },
+	"allClips": { "message": "全部剪藏" },
+	"currentSiteClips": { "message": "当前网站" },
+	"clipCurrentPage": { "message": "剪藏当前页面" },
+	"copySelected": { "message": "复制所选" },
+	"copySelectedCount": { "message": "复制所选（$1）" },
+	"selectClip": { "message": "选择剪藏" },
+	"selectClipNamed": { "message": "选择 $1" },
+	"deleteClip": { "message": "删除剪藏" },
+	"deleteClipNamed": { "message": "删除 $1" },
+	"noSavedClips": { "message": "还没有保存的剪藏" },
+	"noMatchingClips": { "message": "没有匹配的剪藏" },
+	"noSavedClipsDescription": { "message": "剪藏当前页面，开始建立你的可视化资料库。" },
+	"tryDifferentSearch": { "message": "请尝试其他搜索词或筛选条件。" },
+	"failedToLoadClips": { "message": "无法加载已保存的剪藏。" },
+	"clippingCurrentPage": { "message": "正在剪藏当前页面…" },
+	"openedClipEditor": { "message": "此模板需要确认，已打开剪藏编辑器。" },
+	"pageClipped": { "message": "页面已剪藏并加入资料库。" },
+	"clipSavedArchiveFailed": { "message": "已保存到 Obsidian，但无法创建本地卡片。" },
+	"failedToClipCurrentPage": { "message": "无法剪藏当前页面。" },
+	"selectedClipsCopied": { "message": "已复制 $1 个所选剪藏。" },
+	"failedToCopySelectedClips": { "message": "无法复制所选剪藏。" },
+	"deleteClipConfirm": { "message": "要从已保存的剪藏中删除“$1”吗？" },
+	"clipDeleted": { "message": "剪藏已删除。" },
+	"failedToDeleteClip": { "message": "无法删除剪藏。" },
 	"version": {
 		"message": "版本"
 	}

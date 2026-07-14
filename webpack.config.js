@@ -40,6 +40,7 @@ module.exports = (env, argv) => {
 		mode: argv.mode,
 		entry: {
 			popup: './src/core/popup.ts',
+			'side-panel': './src/core/side-panel.ts',
 			settings: './src/core/settings.ts',
 			highlights: './src/core/highlights.ts',
 			'reader-page': './src/core/reader-view.ts',

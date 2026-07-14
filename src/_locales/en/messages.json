@@ -1066,6 +1066,33 @@
 			}
 		}
 	},
+	"clipLibraryTitle": { "message": "AI Web Clipper" },
+	"searchClipsPlaceholder": { "message": "Search clips" },
+	"filterClips": { "message": "Filter clips" },
+	"allClips": { "message": "All clips" },
+	"currentSiteClips": { "message": "Current site" },
+	"clipCurrentPage": { "message": "Clip current page" },
+	"copySelected": { "message": "Copy selected" },
+	"copySelectedCount": { "message": "Copy selected ($1)" },
+	"selectClip": { "message": "Select clip" },
+	"selectClipNamed": { "message": "Select $1" },
+	"deleteClip": { "message": "Delete clip" },
+	"deleteClipNamed": { "message": "Delete $1" },
+	"noSavedClips": { "message": "No saved clips yet" },
+	"noMatchingClips": { "message": "No matching clips" },
+	"noSavedClipsDescription": { "message": "Clip the current page to start your visual library." },
+	"tryDifferentSearch": { "message": "Try a different search or filter." },
+	"failedToLoadClips": { "message": "Saved clips could not be loaded." },
+	"clippingCurrentPage": { "message": "Clipping the current page…" },
+	"openedClipEditor": { "message": "This template needs review. The clip editor was opened." },
+	"pageClipped": { "message": "Page clipped and added to your library." },
+	"clipSavedArchiveFailed": { "message": "Saved to Obsidian, but the local card could not be created." },
+	"failedToClipCurrentPage": { "message": "The current page could not be clipped." },
+	"selectedClipsCopied": { "message": "$1 selected clip(s) copied." },
+	"failedToCopySelectedClips": { "message": "The selected clips could not be copied." },
+	"deleteClipConfirm": { "message": "Delete “$1” from your saved clips?" },
+	"clipDeleted": { "message": "Clip deleted." },
+	"failedToDeleteClip": { "message": "The clip could not be deleted." },
 	"version": {
 		"message": "Version"
 	}
