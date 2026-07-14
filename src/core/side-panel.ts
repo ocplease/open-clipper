@@ -66,17 +66,24 @@ function createCard(clip: SavedClip): HTMLElement {
 	card.dataset.id = clip.id;
 	card.classList.toggle('is-selected', selectedClipIds.has(clip.id));
 
+	const media = document.createElement('div');
+	media.className = 'clip-card-media';
+	const placeholder = document.createElement('i');
+	placeholder.setAttribute('data-lucide', 'image');
+	placeholder.setAttribute('aria-hidden', 'true');
+	media.appendChild(placeholder);
 	if (clip.imageUrl) {
-		const media = document.createElement('div');
-		media.className = 'clip-card-media';
 		const image = document.createElement('img');
 		image.src = clip.imageUrl;
 		image.alt = '';
 		image.loading = 'lazy';
-		image.addEventListener('error', () => media.remove());
+		image.addEventListener('error', () => {
+			image.remove();
+			media.classList.add('is-placeholder');
+		});
 		media.appendChild(image);
-		card.appendChild(media);
-	}
+	} else media.classList.add('is-placeholder');
+	card.appendChild(media);
 
 	const selection = document.createElement('label');
 	selection.className = 'clip-card-selection';
