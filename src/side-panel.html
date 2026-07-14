@@ -7,31 +7,93 @@
 		<script src="browser-polyfill.min.js"></script>
 	</head>
 	<body class="clip-library">
+		<section id="library-view" class="library-view">
+			<section class="library-toolbar" aria-label="Clip filters">
+				<label class="library-search">
+					<i data-lucide="search" aria-hidden="true"></i>
+					<input id="clip-search" type="search" data-i18n="searchClipsPlaceholder" autocomplete="off">
+				</label>
+				<select id="clip-filter" data-i18n-title="filterClips" aria-label="Filter clips">
+					<option value="all" data-i18n="allClips">All clips</option>
+					<option value="current-site" data-i18n="currentSiteClips">Current site</option>
+				</select>
+			</section>
 
-		<section class="library-toolbar" aria-label="Clip filters">
-			<label class="library-search">
-				<i data-lucide="search" aria-hidden="true"></i>
-				<input id="clip-search" type="search" data-i18n="searchClipsPlaceholder" autocomplete="off">
-			</label>
-			<select id="clip-filter" data-i18n-title="filterClips" aria-label="Filter clips">
-				<option value="all" data-i18n="allClips">All clips</option>
-				<option value="current-site" data-i18n="currentSiteClips">Current site</option>
-			</select>
+			<div id="library-status" class="library-status" role="status" aria-live="polite"></div>
+			<main id="clip-feed" class="clip-feed" aria-live="polite"></main>
+
+			<footer class="library-footer">
+				<button id="clip-current-page" class="library-action mod-cta" type="button">
+					<i data-lucide="paperclip"></i>
+					<span data-i18n="clipCurrentPage">Clip current page</span>
+				</button>
+				<button id="copy-selected-clips" class="library-action" type="button" disabled>
+					<i data-lucide="copy"></i>
+					<span id="copy-selected-label" data-i18n="copySelected">Copy selected</span>
+				</button>
+			</footer>
 		</section>
 
-		<div id="library-status" class="library-status" role="status" aria-live="polite"></div>
-		<main id="clip-feed" class="clip-feed" aria-live="polite"></main>
+		<section id="clip-detail" class="clip-detail" hidden aria-labelledby="clip-detail-heading">
+			<header class="clip-detail-header">
+				<button id="clip-detail-back" class="clip-detail-back" type="button">
+					<i data-lucide="arrow-left"></i>
+					<span data-i18n="allClips">All clips</span>
+				</button>
+				<strong id="clip-detail-heading" data-i18n="clipDetails">Clip details</strong>
+				<div class="clip-detail-header-actions">
+					<a id="clip-detail-source" class="clickable-icon" target="_blank" rel="noreferrer" data-i18n-title="openSourcePage">
+						<i data-lucide="arrow-up-right"></i>
+					</a>
+					<button id="clip-detail-close" class="clickable-icon" type="button" data-i18n-title="closeClipDetails">
+						<i data-lucide="x"></i>
+					</button>
+				</div>
+			</header>
 
-		<footer class="library-footer">
-			<button id="clip-current-page" class="library-action mod-cta" type="button">
-				<i data-lucide="paperclip"></i>
-				<span data-i18n="clipCurrentPage">Clip current page</span>
-			</button>
-			<button id="copy-selected-clips" class="library-action" type="button" disabled>
-				<i data-lucide="copy"></i>
-				<span id="copy-selected-label" data-i18n="copySelected">Copy selected</span>
-			</button>
-		</footer>
+			<div id="detail-status" class="library-status detail-status" role="status" aria-live="polite"></div>
+			<div class="clip-detail-scroll">
+				<div class="clip-detail-summary">
+					<div class="clip-detail-site">
+						<img id="clip-detail-favicon" alt="">
+						<span id="clip-detail-site-name"></span>
+					</div>
+					<h1 id="clip-detail-title"></h1>
+					<div id="clip-detail-meta" class="clip-detail-meta"></div>
+					<div id="clip-detail-media" class="clip-detail-media">
+						<i data-lucide="picture-in-picture-2" aria-hidden="true"></i>
+						<img id="clip-detail-image" alt="">
+					</div>
+				</div>
+
+				<div id="clip-detail-tabs" class="clip-detail-tabs" role="tablist" aria-label="Clip content">
+					<button id="clip-preview-tab" type="button" role="tab" aria-controls="clip-preview-panel" data-i18n="preview">Preview</button>
+					<button id="clip-markdown-tab" type="button" role="tab" aria-controls="clip-markdown-panel" data-i18n="markdown">Markdown</button>
+				</div>
+				<div id="clip-preview-panel" class="clip-detail-panel markdown-preview" role="tabpanel" aria-labelledby="clip-preview-tab" hidden></div>
+				<div id="clip-markdown-panel" class="clip-detail-panel note-content-container" role="tabpanel" aria-labelledby="clip-markdown-tab">
+					<textarea id="clip-markdown-field" class="note-content-field" readonly spellcheck="false" data-i18n-title="markdownContent"></textarea>
+				</div>
+			</div>
+
+			<footer class="clip-detail-footer">
+				<button id="copy-clip-markdown" class="detail-action mod-cta" type="button">
+					<i data-lucide="copy"></i>
+					<span data-i18n="copyMarkdown">Copy markdown</span>
+				</button>
+				<button id="edit-clip-markdown" class="detail-action" type="button">
+					<i data-lucide="pen-line"></i>
+					<span data-i18n="editMarkdown">Edit</span>
+				</button>
+				<button id="cancel-clip-edit" class="detail-action" type="button" hidden>
+					<i data-lucide="x"></i>
+					<span data-i18n="cancel">Cancel</span>
+				</button>
+				<button id="delete-detail-clip" class="clickable-icon detail-delete" type="button" data-i18n-title="deleteClip">
+					<i data-lucide="trash-2"></i>
+				</button>
+			</footer>
+		</section>
 		<script type="module" src="side-panel.js"></script>
 	</body>
 </html>

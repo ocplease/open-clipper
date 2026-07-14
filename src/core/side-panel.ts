@@ -11,11 +11,13 @@ import {
 	createSavedClipFromVariables,
 	deleteSavedClip,
 	hostnameFromUrl,
-	listSavedClips
+	listSavedClips,
+	updateSavedClip
 } from '../utils/saved-clips';
 import { incrementStat, setLocalStorage } from '../utils/storage-utils';
 import { isBlankPage, isRestrictedUrl, isValidUrl } from '../utils/active-tab-manager';
 import { ClipFilter, composeSelectedMarkdown, filterSavedClips } from '../utils/clip-library';
+import { renderMarkdownPreview } from '../utils/markdown-preview';
 
 let clips: SavedClip[] = [];
 let selectedClipIds = new Set<string>();
@@ -24,6 +26,11 @@ let currentHostname = '';
 let currentPageCanBeClipped = false;
 let actionInProgress = false;
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
+let activeClipId: string | null = null;
+let activeDetailTab: 'preview' | 'markdown' = 'markdown';
+let detailEditing = false;
+let markdownBeforeEdit = '';
+let feedFocusClipId: string | null = null;
 
 function element<T extends HTMLElement>(id: string): T {
 	const value = document.getElementById(id);
@@ -31,13 +38,18 @@ function element<T extends HTMLElement>(id: string): T {
 	return value as T;
 }
 
-function setStatus(message: string, type: 'info' | 'success' | 'error' = 'info', clearAfter = 0): void {
-	const status = element<HTMLDivElement>('library-status');
+function setStatus(
+	message: string,
+	type: 'info' | 'success' | 'error' = 'info',
+	clearAfter = 0,
+	target: 'library-status' | 'detail-status' = activeClipId ? 'detail-status' : 'library-status'
+): void {
+	const status = element<HTMLDivElement>(target);
 	if (statusTimer) clearTimeout(statusTimer);
 	status.textContent = message;
 	status.dataset.type = message ? type : '';
 	if (clearAfter > 0) {
-		statusTimer = setTimeout(() => setStatus(''), clearAfter);
+		statusTimer = setTimeout(() => setStatus('', 'info', 0, target), clearAfter);
 	}
 }
 
@@ -65,6 +77,12 @@ function createCard(clip: SavedClip): HTMLElement {
 	card.className = 'clip-card';
 	card.dataset.id = clip.id;
 	card.classList.toggle('is-selected', selectedClipIds.has(clip.id));
+	const openButton = document.createElement('button');
+	openButton.type = 'button';
+	openButton.className = 'clip-card-open';
+	openButton.setAttribute('aria-label', getMessage('viewClipNamed', clip.title));
+	openButton.addEventListener('click', () => openClipDetail(clip.id));
+	card.appendChild(openButton);
 
 	const media = document.createElement('div');
 	media.className = 'clip-card-media';
@@ -88,6 +106,7 @@ function createCard(clip: SavedClip): HTMLElement {
 	const selection = document.createElement('label');
 	selection.className = 'clip-card-selection';
 	selection.title = getMessage('selectClip');
+	selection.addEventListener('click', event => event.stopPropagation());
 	const checkbox = document.createElement('input');
 	checkbox.type = 'checkbox';
 	checkbox.checked = selectedClipIds.has(clip.id);
@@ -103,11 +122,8 @@ function createCard(clip: SavedClip): HTMLElement {
 
 	const body = document.createElement('div');
 	body.className = 'clip-card-body';
-	const title = document.createElement('a');
+	const title = document.createElement('span');
 	title.className = 'clip-card-title';
-	title.href = clip.url;
-	title.target = '_blank';
-	title.rel = 'noreferrer';
 	title.textContent = clip.title;
 	title.title = clip.title;
 	body.appendChild(title);
@@ -147,12 +163,215 @@ function createCard(clip: SavedClip): HTMLElement {
 	deleteButton.title = getMessage('deleteClip');
 	deleteButton.setAttribute('aria-label', getMessage('deleteClipNamed', clip.title));
 	deleteButton.innerHTML = '<i data-lucide="trash-2"></i>';
-	deleteButton.addEventListener('click', () => void confirmDeleteClip(clip));
+	deleteButton.addEventListener('click', event => {
+		event.stopPropagation();
+		void confirmDeleteClip(clip);
+	});
 	cardActions.appendChild(deleteButton);
 	meta.appendChild(cardActions);
 	body.appendChild(meta);
 	card.appendChild(body);
 	return card;
+}
+
+function getActiveClip(): SavedClip | undefined {
+	return activeClipId ? clips.find(clip => clip.id === activeClipId) : undefined;
+}
+
+function setButtonContent(button: HTMLButtonElement, icon: string, label: string): void {
+	button.replaceChildren();
+	const iconElement = document.createElement('i');
+	iconElement.setAttribute('data-lucide', icon);
+	iconElement.setAttribute('aria-hidden', 'true');
+	const labelElement = document.createElement('span');
+	labelElement.textContent = label;
+	button.append(iconElement, labelElement);
+	initializeIcons(button);
+}
+
+function setDetailTab(tab: 'preview' | 'markdown', focusTab = false): void {
+	if (detailEditing && tab === 'preview') return;
+	activeDetailTab = tab;
+	const previewTab = element<HTMLButtonElement>('clip-preview-tab');
+	const markdownTab = element<HTMLButtonElement>('clip-markdown-tab');
+	const previewPanel = element<HTMLDivElement>('clip-preview-panel');
+	const markdownPanel = element<HTMLDivElement>('clip-markdown-panel');
+	const previewActive = tab === 'preview';
+
+	previewTab.setAttribute('aria-selected', previewActive.toString());
+	previewTab.tabIndex = previewActive ? 0 : -1;
+	markdownTab.setAttribute('aria-selected', (!previewActive).toString());
+	markdownTab.tabIndex = previewActive ? -1 : 0;
+	previewPanel.hidden = !previewActive;
+	markdownPanel.hidden = previewActive;
+	if (focusTab) (previewActive ? previewTab : markdownTab).focus();
+}
+
+function appendDetailMeta(container: HTMLElement, text: string): void {
+	if (!text.trim()) return;
+	const item = document.createElement('span');
+	item.textContent = text;
+	container.appendChild(item);
+}
+
+function renderClipDetail(): void {
+	const clip = getActiveClip();
+	if (!clip) return;
+
+	const favicon = element<HTMLImageElement>('clip-detail-favicon');
+	favicon.hidden = !clip.faviconUrl;
+	if (clip.faviconUrl) {
+		favicon.src = clip.faviconUrl;
+		favicon.onerror = () => { favicon.hidden = true; };
+	}
+	element<HTMLSpanElement>('clip-detail-site-name').textContent = clip.site || hostnameFromUrl(clip.url);
+	element<HTMLHeadingElement>('clip-detail-title').textContent = clip.title;
+	element<HTMLAnchorElement>('clip-detail-source').href = clip.url;
+	element<HTMLAnchorElement>('clip-detail-source').setAttribute('aria-label', getMessage('openSourceNamed', clip.title));
+
+	const meta = element<HTMLDivElement>('clip-detail-meta');
+	meta.replaceChildren();
+	appendDetailMeta(meta, clip.author ? getMessage('byAuthor', clip.author) : '');
+	appendDetailMeta(meta, formatClipDate(clip.published || clip.createdAt));
+	appendDetailMeta(meta, clip.templateName);
+
+	const media = element<HTMLDivElement>('clip-detail-media');
+	const image = element<HTMLImageElement>('clip-detail-image');
+	media.classList.toggle('is-placeholder', !clip.imageUrl);
+	image.hidden = !clip.imageUrl;
+	if (clip.imageUrl) {
+		image.src = clip.imageUrl;
+		image.alt = clip.title;
+		image.onerror = () => {
+			image.hidden = true;
+			media.classList.add('is-placeholder');
+		};
+	}
+
+	if (!detailEditing) element<HTMLTextAreaElement>('clip-markdown-field').value = clip.markdown;
+	const preview = element<HTMLDivElement>('clip-preview-panel');
+	try {
+		preview.replaceChildren(renderMarkdownPreview(clip.markdown));
+	} catch (error) {
+		console.error('Unable to render Markdown preview:', error);
+		preview.textContent = clip.markdown;
+	}
+	setDetailTab(activeDetailTab);
+}
+
+function openClipDetail(clipId: string): void {
+	const clip = clips.find(candidate => candidate.id === clipId);
+	if (!clip) return;
+	feedFocusClipId = clipId;
+	activeClipId = clipId;
+	activeDetailTab = 'markdown';
+	detailEditing = false;
+	markdownBeforeEdit = clip.markdown;
+	element<HTMLElement>('library-view').hidden = true;
+	element<HTMLElement>('clip-detail').hidden = false;
+	setStatus('', 'info', 0, 'detail-status');
+	element<HTMLButtonElement>('clip-preview-tab').disabled = false;
+	element<HTMLTextAreaElement>('clip-markdown-field').readOnly = true;
+	element<HTMLButtonElement>('cancel-clip-edit').hidden = true;
+	setButtonContent(element<HTMLButtonElement>('edit-clip-markdown'), 'pen-line', getMessage('editMarkdown'));
+	renderClipDetail();
+	element<HTMLButtonElement>('clip-detail-back').focus();
+}
+
+function closeClipDetail(restoreFocus = true): void {
+	const focusId = feedFocusClipId;
+	detailEditing = false;
+	activeClipId = null;
+	element<HTMLElement>('clip-detail').hidden = true;
+	element<HTMLElement>('library-view').hidden = false;
+	if (restoreFocus && focusId) {
+		requestAnimationFrame(() => {
+			element<HTMLElement>('clip-feed')
+				.querySelector<HTMLButtonElement>(`.clip-card[data-id="${CSS.escape(focusId)}"] .clip-card-open`)
+				?.focus();
+		});
+	}
+}
+
+function beginDetailEdit(): void {
+	const clip = getActiveClip();
+	if (!clip || actionInProgress) return;
+	detailEditing = true;
+	markdownBeforeEdit = clip.markdown;
+	setDetailTab('markdown');
+	const field = element<HTMLTextAreaElement>('clip-markdown-field');
+	field.readOnly = false;
+	element<HTMLButtonElement>('clip-preview-tab').disabled = true;
+	element<HTMLButtonElement>('cancel-clip-edit').hidden = false;
+	setButtonContent(element<HTMLButtonElement>('edit-clip-markdown'), 'check', getMessage('saveChanges'));
+	field.focus();
+}
+
+function cancelDetailEdit(): void {
+	if (!detailEditing) return;
+	detailEditing = false;
+	const field = element<HTMLTextAreaElement>('clip-markdown-field');
+	field.value = markdownBeforeEdit;
+	field.readOnly = true;
+	element<HTMLButtonElement>('clip-preview-tab').disabled = false;
+	element<HTMLButtonElement>('cancel-clip-edit').hidden = true;
+	setButtonContent(element<HTMLButtonElement>('edit-clip-markdown'), 'pen-line', getMessage('editMarkdown'));
+	field.focus();
+}
+
+async function saveDetailEdit(): Promise<void> {
+	const clip = getActiveClip();
+	if (!clip || !detailEditing || actionInProgress) return;
+	actionInProgress = true;
+	const updatedClip = { ...clip, markdown: element<HTMLTextAreaElement>('clip-markdown-field').value };
+	try {
+		await updateSavedClip(updatedClip);
+		clips = clips.map(candidate => candidate.id === updatedClip.id ? updatedClip : candidate);
+		detailEditing = false;
+		markdownBeforeEdit = updatedClip.markdown;
+		element<HTMLTextAreaElement>('clip-markdown-field').readOnly = true;
+		element<HTMLButtonElement>('clip-preview-tab').disabled = false;
+		element<HTMLButtonElement>('cancel-clip-edit').hidden = true;
+		setButtonContent(element<HTMLButtonElement>('edit-clip-markdown'), 'pen-line', getMessage('editMarkdown'));
+		renderClipDetail();
+		setStatus(getMessage('markdownSaved'), 'success', 2500, 'detail-status');
+	} catch (error) {
+		console.error('Unable to update saved clip:', error);
+		setStatus(getMessage('failedToSaveMarkdown'), 'error', 0, 'detail-status');
+	} finally {
+		actionInProgress = false;
+	}
+}
+
+async function copyDetailMarkdown(): Promise<void> {
+	if (!activeClipId || actionInProgress) return;
+	actionInProgress = true;
+	try {
+		const success = await copyToClipboard(element<HTMLTextAreaElement>('clip-markdown-field').value);
+		if (!success) throw new Error('Clipboard write failed');
+		setStatus(getMessage('markdownCopied'), 'success', 2500, 'detail-status');
+	} catch (error) {
+		console.error('Unable to copy clip Markdown:', error);
+		setStatus(getMessage('failedToCopyMarkdown'), 'error', 0, 'detail-status');
+	} finally {
+		actionInProgress = false;
+	}
+}
+
+async function deleteDetailClip(): Promise<void> {
+	const clip = getActiveClip();
+	if (!clip || !window.confirm(getMessage('deleteClipConfirm', clip.title))) return;
+	try {
+		await deleteSavedClip(clip.id);
+		selectedClipIds.delete(clip.id);
+		activeClipId = null;
+		await loadClips();
+		closeClipDetail(false);
+		setStatus(getMessage('clipDeleted'), 'success', 2500, 'library-status');
+	} catch (error) {
+		console.error('Unable to delete saved clip:', error);
+		setStatus(getMessage('failedToDeleteClip'), 'error', 0, 'detail-status');
+	}
 }
 
 function renderFeed(): void {
@@ -188,6 +407,12 @@ async function loadClips(): Promise<void> {
 		const existingIds = new Set(clips.map(clip => clip.id));
 		selectedClipIds = new Set([...selectedClipIds].filter(id => existingIds.has(id)));
 		renderFeed();
+		if (activeClipId && existingIds.has(activeClipId)) {
+			renderClipDetail();
+		} else if (activeClipId) {
+			closeClipDetail(false);
+			setStatus(getMessage('clipNoLongerAvailable'), 'info', 3000, 'library-status');
+		}
 		updateActions();
 	} catch (error) {
 		console.error('Unable to load saved clips:', error);
@@ -309,6 +534,39 @@ function setupEvents(): void {
 	element<HTMLSelectElement>('clip-filter').addEventListener('change', renderFeed);
 	element<HTMLButtonElement>('clip-current-page').addEventListener('click', () => void clipCurrentPage());
 	element<HTMLButtonElement>('copy-selected-clips').addEventListener('click', () => void copySelectedClips());
+	element<HTMLButtonElement>('clip-detail-back').addEventListener('click', () => closeClipDetail());
+	element<HTMLButtonElement>('clip-detail-close').addEventListener('click', () => closeClipDetail());
+	element<HTMLButtonElement>('clip-preview-tab').addEventListener('click', () => setDetailTab('preview'));
+	element<HTMLButtonElement>('clip-markdown-tab').addEventListener('click', () => setDetailTab('markdown'));
+	element<HTMLButtonElement>('copy-clip-markdown').addEventListener('click', () => void copyDetailMarkdown());
+	element<HTMLButtonElement>('edit-clip-markdown').addEventListener('click', () => {
+		if (detailEditing) void saveDetailEdit();
+		else beginDetailEdit();
+	});
+	element<HTMLButtonElement>('cancel-clip-edit').addEventListener('click', cancelDetailEdit);
+	element<HTMLButtonElement>('delete-detail-clip').addEventListener('click', () => void deleteDetailClip());
+	element<HTMLTextAreaElement>('clip-markdown-field').addEventListener('keydown', event => {
+		if (event.key === 'Escape' && detailEditing) {
+			event.preventDefault();
+			cancelDetailEdit();
+		}
+		if (event.key === 'Enter' && detailEditing && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault();
+			void saveDetailEdit();
+		}
+	});
+
+	const detailTabs = [
+		element<HTMLButtonElement>('clip-preview-tab'),
+		element<HTMLButtonElement>('clip-markdown-tab')
+	];
+	detailTabs.forEach((tab, index) => tab.addEventListener('keydown', event => {
+		if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+		event.preventDefault();
+		const direction = event.key === 'ArrowRight' ? 1 : -1;
+		const next = detailTabs[(index + direction + detailTabs.length) % detailTabs.length];
+		if (!next.disabled) setDetailTab(next.id === 'clip-preview-tab' ? 'preview' : 'markdown', true);
+	}));
 
 	browser.runtime.onMessage.addListener((request: unknown): undefined => {
 		if (!request || typeof request !== 'object') return undefined;
@@ -326,6 +584,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 	await addBrowserClassToHtml();
 	initializeIcons();
 	element<HTMLSelectElement>('clip-filter').setAttribute('aria-label', getMessage('filterClips'));
+	element<HTMLElement>('clip-detail-tabs').setAttribute('aria-label', getMessage('clipContent'));
+	element<HTMLButtonElement>('clip-detail-close').setAttribute('aria-label', getMessage('closeClipDetails'));
+	element<HTMLButtonElement>('delete-detail-clip').setAttribute('aria-label', getMessage('deleteClip'));
 	setupEvents();
 	void browser.runtime.sendMessage({ action: 'sidePanelOpened' });
 	window.addEventListener('beforeunload', () => {

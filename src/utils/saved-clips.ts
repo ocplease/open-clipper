@@ -60,6 +60,12 @@ export async function addSavedClip(clip: SavedClip): Promise<void> {
 	await notifySavedClipsChanged();
 }
 
+/** Updates an existing saved clip and notifies any open library views. */
+export async function updateSavedClip(clip: SavedClip): Promise<void> {
+	await runRequest<IDBValidKey>('readwrite', store => store.put(clip));
+	await notifySavedClipsChanged();
+}
+
 export async function deleteSavedClip(id: string): Promise<void> {
 	await runRequest<undefined>('readwrite', store => store.delete(id));
 	await notifySavedClipsChanged();

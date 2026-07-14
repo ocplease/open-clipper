@@ -124,21 +124,9 @@
 		}
 	}
 
-	#note-content-container {
+	.note-content-container {
+		--note-content-padding: 10px var(--popup-padding);
 		border-top: 1px solid var(--divider-color);
-		display: flex;
-		flex-grow: 1;
-		#note-content-field {
-			background-color: transparent;
-			border-radius: 0;
-			border: none;
-			padding: 10px var(--popup-padding);
-			resize: none;
-			&:active,
-			&:focus {
-				box-shadow: none;
-			}
-		}
 	}
 
 	.clipper-footer {
