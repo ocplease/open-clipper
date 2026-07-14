@@ -302,10 +302,6 @@ function setupEvents(): void {
 	element<HTMLSelectElement>('clip-filter').addEventListener('change', renderFeed);
 	element<HTMLButtonElement>('clip-current-page').addEventListener('click', () => void clipCurrentPage());
 	element<HTMLButtonElement>('copy-selected-clips').addEventListener('click', () => void copySelectedClips());
-	element<HTMLButtonElement>('library-settings').addEventListener('click', () => {
-		void browser.runtime.sendMessage({ action: 'openOptionsPage' });
-	});
-	element<HTMLButtonElement>('library-close').addEventListener('click', () => window.close());
 
 	browser.runtime.onMessage.addListener((request: unknown): undefined => {
 		if (!request || typeof request !== 'object') return undefined;
@@ -322,8 +318,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 	await setupLanguageAndDirection();
 	await addBrowserClassToHtml();
 	initializeIcons();
-	element<HTMLButtonElement>('library-settings').setAttribute('aria-label', getMessage('settings'));
-	element<HTMLButtonElement>('library-close').setAttribute('aria-label', getMessage('close'));
 	element<HTMLSelectElement>('clip-filter').setAttribute('aria-label', getMessage('filterClips'));
 	setupEvents();
 	void browser.runtime.sendMessage({ action: 'sidePanelOpened' });
