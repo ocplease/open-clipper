@@ -981,7 +981,7 @@ async function exportCurrentContext() {
 			try {
 				await navigator.share({
 					files: [new File([blob], fileName, { type: 'application/json' })],
-					title: 'Exported Obsidian Web Clipper Highlights',
+					title: 'Exported Open Clipper Highlights',
 				});
 			} catch {
 				window.open(blobUrl);

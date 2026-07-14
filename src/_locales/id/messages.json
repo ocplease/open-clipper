@@ -118,7 +118,7 @@
 		"message": "Tutup"
 	},
 	"commandOpenClipper": {
-		"message": "Buka Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Klip cepat"
@@ -286,7 +286,7 @@
 		"message": "Simpan konten dari web dalam format yang bersifat privat dan tahan lama dan dapat diakses secara offline. Ekstensi browser resmi untuk Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Gagal menyalin teks"

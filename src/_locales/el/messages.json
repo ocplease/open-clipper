@@ -118,7 +118,7 @@
 		"message": "Κλείσιμο"
 	},
 	"commandOpenClipper": {
-		"message": "Άνοιγμα Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Γρήγορη αποκοπή"
@@ -286,7 +286,7 @@
 		"message": "Αποθηκεύστε περιεχόμενο από τον ιστό σε ιδιωτική και βιώσιμη μορφή στην οποία έχετε πρόσβαση εκτός σύνδεσης. Η επίσημη επέκταση περιηγητή για το Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Αποτυχία αντιγραφής κειμένου"

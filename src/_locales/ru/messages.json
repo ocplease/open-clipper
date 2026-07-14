@@ -118,7 +118,7 @@
 		"message": "Закрыть"
 	},
 	"commandOpenClipper": {
-		"message": "Открыть Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Быстрое сохранение"
@@ -286,7 +286,7 @@
 		"message": "Сохраняйте содержимое веб-страниц в конфиденциальном и долговременном формате, к которому можно получить доступ в автономном режиме. Официальное расширение для браузера Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Не удалось скопировать текст"

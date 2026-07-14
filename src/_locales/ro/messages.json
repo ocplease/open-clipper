@@ -118,7 +118,7 @@
 		"message": "Închide"
 	},
 	"commandOpenClipper": {
-		"message": "Deschide Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Decupare rapidă"
@@ -286,7 +286,7 @@
 		"message": "Salvează conținut web într-un format privat și durabil care poate fi accesat offline. Extensia oficială de browser pentru Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Nu s-a putut copia textul"

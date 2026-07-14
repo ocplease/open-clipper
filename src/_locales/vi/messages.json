@@ -118,7 +118,7 @@
 		"message": "Đóng"
 	},
 	"commandOpenClipper": {
-		"message": "Mở Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Lưu nhanh"
@@ -286,7 +286,7 @@
 		"message": "Lưu nội dung từ web trong định dạng riêng tư và bền vững mà bạn có thể truy cập ngoại tuyến. Tiện ích mở rộng trình duyệt chính thức cho Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Không thể sao chép văn bản"

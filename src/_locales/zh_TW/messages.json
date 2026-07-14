@@ -118,7 +118,7 @@
 		"message": "關閉"
 	},
 	"commandOpenClipper": {
-		"message": "開啟 Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "快速擷取"
@@ -286,7 +286,7 @@
 		"message": "將網路內容以私密且穩定的格式儲存下來，供您離線存取使用。這是 Obsidian 官方推出的瀏覽器擴充套件。"
 	},
 	"extensionName": {
-		"message": "Obsidian 網頁擷取器"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "複製文字失敗"

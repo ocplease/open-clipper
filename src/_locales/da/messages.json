@@ -118,7 +118,7 @@
 		"message": "Luk"
 	},
 	"commandOpenClipper": {
-		"message": "Åbn Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Hurtigklip"
@@ -286,7 +286,7 @@
 		"message": "Gem webindhold i et privat og holdbart format, tilgængeligt offline. Den officielle browserudvidelse til Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Kunne ikke kopiere tekst"

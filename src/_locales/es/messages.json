@@ -118,7 +118,7 @@
 		"message": "Cerrar"
 	},
 	"commandOpenClipper": {
-		"message": "Abrir Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Guardado rápido"
@@ -286,7 +286,7 @@
 		"message": "Guarda contenido web en un formato privado y duradero al que puedes acceder sin conexión. La extensión oficial para Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Error al copiar el texto"

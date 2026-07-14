@@ -118,7 +118,7 @@
 		"message": "Bezárás"
 	},
 	"commandOpenClipper": {
-		"message": "Obsidian Clipper megnyitása"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Gyors klip"
@@ -286,7 +286,7 @@
 		"message": "Ments tartalmat a webről privát és tartós formátumban, amelyet offline is elérhetsz. Az Obsidian hivatalos böngészőbővítménye."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Nem sikerült a szöveg másolása"

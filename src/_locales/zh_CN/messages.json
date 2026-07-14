@@ -118,7 +118,7 @@
 		"message": "关闭"
 	},
 	"commandOpenClipper": {
-		"message": "打开 Obsidian 剪藏器"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "快速剪藏"
@@ -286,7 +286,7 @@
 		"message": "以私密且持久的格式保存网页内容，可离线访问。Obsidian 官方浏览器扩展。"
 	},
 	"extensionName": {
-		"message": "Obsidian 网页剪藏器"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "复制文本失败"
@@ -1066,7 +1066,7 @@
 			}
 		}
 	},
-	"clipLibraryTitle": { "message": "AI 网页剪藏" },
+	"clipLibraryTitle": { "message": "Open Clipper" },
 	"searchClipsPlaceholder": { "message": "搜索剪藏" },
 	"filterClips": { "message": "筛选剪藏" },
 	"allClips": { "message": "全部剪藏" },

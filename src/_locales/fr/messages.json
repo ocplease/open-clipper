@@ -118,7 +118,7 @@
 		"message": "Fermer"
 	},
 	"commandOpenClipper": {
-		"message": "Ouvrir Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Enregistrement rapide"
@@ -286,7 +286,7 @@
 		"message": "Sauvegardez du contenu web dans un format privé et durable accessible hors ligne. L'extension officielle pour Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Échec de la copie du texte"

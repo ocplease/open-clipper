@@ -118,7 +118,7 @@
 		"message": "Kapat"
 	},
 	"commandOpenClipper": {
-		"message": "Obsidian Kırpıcı'yı aç"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Hızlı kırp"
@@ -286,7 +286,7 @@
 		"message": "Web içeriğini çevrimdışı erişebileceğiniz özel ve kalıcı bir formatta kaydedin. Obsidian'ın resmi tarayıcı uzantısı."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Kırpıcı"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Metin kopyalanamadı"

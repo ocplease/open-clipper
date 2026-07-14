@@ -513,7 +513,7 @@ function setupEventListeners(tabId: number) {
 						
 						const shareData = {
 							files: [file],
-							text: 'Shared from Obsidian Web Clipper'
+							text: 'Shared from Open Clipper'
 						};
 
 						if (navigator.canShare(shareData)) {

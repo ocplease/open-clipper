@@ -118,7 +118,7 @@
 		"message": "Sulje"
 	},
 	"commandOpenClipper": {
-		"message": "Avaa Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Pikaleikkaus"
@@ -286,7 +286,7 @@
 		"message": "Tallenna verkkosisältöä yksityisessä ja kestävässä muodossa, jota voit käyttää offline-tilassa. Obsidianin virallinen selainlaajennus."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Tekstin kopiointi epäonnistui"

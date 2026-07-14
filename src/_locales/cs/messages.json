@@ -118,7 +118,7 @@
 		"message": "Zavřít"
 	},
 	"commandOpenClipper": {
-		"message": "Otevřít Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Rychlé zachycení"
@@ -286,7 +286,7 @@
 		"message": "Uložte obsah z webu v soukromém a trvalém formátu, ke kterému máte přístup offline. Oficiální prohlížečové rozšíření pro Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Nepodařilo se zkopírovat text"

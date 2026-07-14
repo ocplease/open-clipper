@@ -118,7 +118,7 @@
 		"message": "Close"
 	},
 	"commandOpenClipper": {
-		"message": "Open Obsidian Clipper"
+		"message": "Open Clipper"
 	},
 	"commandQuickClip": {
 		"message": "Quick clip"
@@ -286,7 +286,7 @@
 		"message": "Save content from the web in a private and durable format that you can access offline. The official browser extension for Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Open Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Failed to copy text"
@@ -1066,7 +1066,7 @@
 			}
 		}
 	},
-	"clipLibraryTitle": { "message": "AI Web Clipper" },
+	"clipLibraryTitle": { "message": "Open Clipper" },
 	"searchClipsPlaceholder": { "message": "Search clips" },
 	"filterClips": { "message": "Filter clips" },
 	"allClips": { "message": "All clips" },
