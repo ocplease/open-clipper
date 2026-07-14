@@ -1048,8 +1048,8 @@ async function injectReaderScript(tabId: number) {
 	}
 }
 
-// When set to 'reader' or 'embedded', clear the popup so action.onClicked fires
-// instead, handling the action directly without briefly opening the popup.
+// Chrome uses the visual clip library as its primary action. Other browsers keep
+// the existing configurable popup/reader/embedded behavior.
 const validOpenBehaviors: Settings['openBehavior'][] = ['popup', 'embedded', 'reader'];
 
 function parseOpenBehavior(raw: string | undefined): Settings['openBehavior'] {
@@ -1062,6 +1062,10 @@ async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promi
 		openBehavior = parseOpenBehavior((data.general_settings as Record<string, string>)?.openBehavior);
 	}
 	currentOpenBehavior = openBehavior;
+	if (supportsVisualLibrarySidePanel()) {
+		await browser.action.setPopup({ popup: '' });
+		return;
+	}
 	if (openBehavior === 'reader' || openBehavior === 'embedded') {
 		await browser.action.setPopup({ popup: '' });
 	} else {
@@ -1071,8 +1075,31 @@ async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promi
 
 let currentOpenBehavior: Settings['openBehavior'] = 'popup';
 
-// In reader/embedded mode, opens embedded iframe instead of popup.
+function supportsVisualLibrarySidePanel(): boolean {
+	return typeof chrome !== 'undefined' && Boolean(chrome.sidePanel?.open);
+}
+
+async function openVisualLibrary(tabId?: number, windowId?: number): Promise<boolean> {
+	if (!supportsVisualLibrarySidePanel()) return false;
+	if (tabId !== undefined) {
+		await chrome.sidePanel.open({ tabId });
+	} else if (windowId !== undefined) {
+		await chrome.sidePanel.open({ windowId });
+	} else {
+		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+		const tab = tabs[0];
+		if (tab?.id === undefined) return false;
+		await chrome.sidePanel.open({ tabId: tab.id });
+		windowId = tab.windowId;
+	}
+	if (windowId !== undefined) sidePanelOpenWindows.add(windowId);
+	return true;
+}
+
+// On Chrome, opens the visual library. Other browsers retain their existing
+// reader/embedded/popup behavior.
 async function openPopup(): Promise<void> {
+	if (await openVisualLibrary()) return;
 	if (currentOpenBehavior === 'reader' || currentOpenBehavior === 'embedded') {
 		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
 		const tab = tabs[0];
@@ -1087,6 +1114,7 @@ async function openPopup(): Promise<void> {
 }
 
 browser.action.onClicked.addListener(async (tab) => {
+	if (await openVisualLibrary(tab.id, tab.windowId)) return;
 	if (!tab?.id || !tab.url || !isValidUrl(tab.url) || isBlankPage(tab.url)) return;
 
 	if (currentOpenBehavior === 'reader') {

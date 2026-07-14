@@ -312,6 +312,7 @@ function setupEvents(): void {
 		const message = request as { action?: string; tabId?: number; url?: string };
 		if (message.action === 'savedClipsChanged') void loadClips();
 		if (message.action === 'activeTabChanged') void refreshActiveTab(message.tabId, message.url);
+		if (message.action === 'triggerQuickClip') void clipCurrentPage();
 		return undefined;
 	});
 }
