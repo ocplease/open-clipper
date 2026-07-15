@@ -245,6 +245,14 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		min-width: 0;
+		.obsidian-save-icon {
+			width: 0.875rem;
+			height: 0.875rem;
+			flex: 0 0 auto;
+			background-color: currentColor;
+			-webkit-mask: url('icons/obsidian-save.svg') center / contain no-repeat;
+			mask: url('icons/obsidian-save.svg') center / contain no-repeat;
+		}
 
 		.library-action {
 			width: 100%;
