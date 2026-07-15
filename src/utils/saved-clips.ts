@@ -1,5 +1,6 @@
 import browser from './browser-polyfill';
 import { SavedClip, Template } from '../types/types';
+import { getClipImageCandidates } from './clip-image';
 
 const DATABASE_NAME = 'open-clipper-library';
 const DATABASE_VERSION = 1;
@@ -126,15 +127,28 @@ export function createSavedClipFromVariables(
 	vault: string,
 	path: string
 ): SavedClip {
+	const url = variables['{{url}}'] || '';
+	const imageUrl = getClipImageCandidates({
+		pageUrl: url,
+		metadataImages: [
+			variables['{{image}}'],
+			variables['{{meta:property:og:image:secure_url}}'],
+			variables['{{meta:property:og:image}}'],
+			variables['{{meta:name:twitter:image}}'],
+			variables['{{meta:property:twitter:image}}']
+		],
+		contentHtml: variables['{{contentHtml}}'],
+		markdown
+	})[0] || '';
 	return createSavedClip({
-		url: variables['{{url}}'] || '',
+		url,
 		title: variables['{{title}}'],
 		description: variables['{{description}}'],
 		site: variables['{{site}}'],
 		author: variables['{{author}}'],
 		published: variables['{{published}}'],
 		faviconUrl: variables['{{favicon}}'],
-		imageUrl: variables['{{image}}'],
+		imageUrl,
 		markdown,
 		template,
 		vault,

@@ -18,6 +18,7 @@ import { incrementStat, setLocalStorage } from '../utils/storage-utils';
 import { isBlankPage, isRestrictedUrl, isValidUrl } from '../utils/active-tab-manager';
 import { ClipFilter, composeSelectedMarkdown, filterSavedClips } from '../utils/clip-library';
 import { renderMarkdownPreview } from '../utils/markdown-preview';
+import { getSavedClipImageCandidates } from '../utils/clip-image';
 
 let clips: SavedClip[] = [];
 let selectedClipIds = new Set<string>();
@@ -72,6 +73,20 @@ function updateActions(): void {
 		: getMessage('copySelected');
 }
 
+function loadClipImage(image: HTMLImageElement, candidates: string[], onExhausted: () => void): void {
+	let candidateIndex = 0;
+	image.referrerPolicy = 'no-referrer';
+	image.decoding = 'async';
+	image.onload = () => { image.hidden = false; };
+	const tryNextCandidate = () => {
+		const nextCandidate = candidates[candidateIndex++];
+		if (nextCandidate) image.src = nextCandidate;
+		else onExhausted();
+	};
+	image.onerror = tryNextCandidate;
+	tryNextCandidate();
+}
+
 function createCard(clip: SavedClip): HTMLElement {
 	const card = document.createElement('article');
 	card.className = 'clip-card';
@@ -90,12 +105,12 @@ function createCard(clip: SavedClip): HTMLElement {
 	placeholder.setAttribute('data-lucide', 'image');
 	placeholder.setAttribute('aria-hidden', 'true');
 	media.appendChild(placeholder);
-	if (clip.imageUrl) {
+	const imageCandidates = getSavedClipImageCandidates(clip);
+	if (imageCandidates.length > 0) {
 		const image = document.createElement('img');
-		image.src = clip.imageUrl;
 		image.alt = '';
 		image.loading = 'lazy';
-		image.addEventListener('error', () => {
+		loadClipImage(image, imageCandidates, () => {
 			image.remove();
 			media.classList.add('is-placeholder');
 		});
@@ -237,15 +252,15 @@ function renderClipDetail(): void {
 
 	const media = element<HTMLDivElement>('clip-detail-media');
 	const image = element<HTMLImageElement>('clip-detail-image');
-	media.classList.toggle('is-placeholder', !clip.imageUrl);
-	image.hidden = !clip.imageUrl;
-	if (clip.imageUrl) {
-		image.src = clip.imageUrl;
+	const imageCandidates = getSavedClipImageCandidates(clip);
+	media.classList.toggle('is-placeholder', imageCandidates.length === 0);
+	image.hidden = imageCandidates.length === 0;
+	if (imageCandidates.length > 0) {
 		image.alt = clip.title;
-		image.onerror = () => {
+		loadClipImage(image, imageCandidates, () => {
 			image.hidden = true;
 			media.classList.add('is-placeholder');
-		};
+		});
 	}
 
 	if (!detailEditing) element<HTMLTextAreaElement>('clip-markdown-field').value = clip.markdown;
