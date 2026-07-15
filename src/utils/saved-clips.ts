@@ -120,6 +120,19 @@ export function createSavedClip(source: SavedClipSource): SavedClip {
 	};
 }
 
+function getSchemaThumbnailCandidates(variables: Record<string, string>): string[] {
+	return Object.entries(variables).flatMap(([key, value]) => {
+		if (!/^\{\{schema:(?:.*[:.])?thumbnailUrl\}\}$/i.test(key) || !value?.trim()) return [];
+		try {
+			const parsed = JSON.parse(value);
+			if (Array.isArray(parsed)) return parsed.filter(item => typeof item === 'string');
+			return typeof parsed === 'string' ? [parsed] : [];
+		} catch {
+			return [value];
+		}
+	});
+}
+
 export function createSavedClipFromVariables(
 	markdown: string,
 	template: Template,
@@ -132,6 +145,7 @@ export function createSavedClipFromVariables(
 		pageUrl: url,
 		metadataImages: [
 			variables['{{image}}'],
+			...getSchemaThumbnailCandidates(variables),
 			variables['{{meta:property:og:image:secure_url}}'],
 			variables['{{meta:property:og:image}}'],
 			variables['{{meta:name:twitter:image}}'],

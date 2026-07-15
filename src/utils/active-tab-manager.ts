@@ -8,14 +8,19 @@ export async function updateCurrentActiveTab(windowId: number) {
 	if (tabs[0] && tabs[0].id && tabs[0].url) {
 		currentActiveTabId = tabs[0].id;
 		currentWindowId = windowId;
-		browser.runtime.sendMessage({
-			action: "activeTabChanged",
-			tabId: currentActiveTabId,
-			url: tabs[0].url,
-			isValidUrl: isValidUrl(tabs[0].url),
-			isBlankPage: isBlankPage(tabs[0].url),
-			isRestrictedUrl: isRestrictedUrl(tabs[0].url)
-		});
+		try {
+			await browser.runtime.sendMessage({
+				action: "activeTabChanged",
+				tabId: currentActiveTabId,
+				windowId,
+				url: tabs[0].url,
+				isValidUrl: isValidUrl(tabs[0].url),
+				isBlankPage: isBlankPage(tabs[0].url),
+				isRestrictedUrl: isRestrictedUrl(tabs[0].url)
+			});
+		} catch {
+			// No listener is expected when the side panel is closed.
+		}
 	}
 }
 

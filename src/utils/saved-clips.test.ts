@@ -29,4 +29,20 @@ describe('saved clip metadata', () => {
 		}, 'Notes', 'Clippings');
 		expect(saved.imageUrl).toBe('https://example.com/images/social.jpg');
 	});
+
+	it('uses a schema.org thumbnail array for YouTube clips', () => {
+		const saved = createSavedClipFromVariables(
+			'![Video](https://www.youtube.com/watch?v=abc123XYZ_0)',
+			template,
+			{
+				'{{url}}': 'https://www.youtube.com/watch?v=abc123XYZ_0',
+				'{{title}}': 'Video',
+				'{{image}}': '',
+				'{{schema:thumbnailUrl}}': '["https://i.ytimg.com/vi/abc123XYZ_0/maxresdefault.jpg"]'
+			},
+			'Notes',
+			'Clippings'
+		);
+		expect(saved.imageUrl).toBe('https://i.ytimg.com/vi/abc123XYZ_0/maxresdefault.jpg');
+	});
 });

@@ -1,5 +1,29 @@
-import { describe, test, expect } from 'vitest';
-import { isValidUrl, isBlankPage, isRestrictedUrl } from './active-tab-manager';
+import { afterEach, describe, test, expect, vi } from 'vitest';
+import browser from './browser-polyfill';
+import { isValidUrl, isBlankPage, isRestrictedUrl, updateCurrentActiveTab } from './active-tab-manager';
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('updateCurrentActiveTab', () => {
+	test('broadcasts the active tab with its source window', async () => {
+		vi.spyOn(browser.tabs, 'query').mockResolvedValue([{
+			id: 17,
+			windowId: 4,
+			url: 'https://example.com/article'
+		}] as any);
+		const sendMessage = vi.spyOn(browser.runtime, 'sendMessage');
+
+		await updateCurrentActiveTab(4);
+
+		expect(browser.tabs.query).toHaveBeenCalledWith({ active: true, windowId: 4 });
+		expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+			action: 'activeTabChanged',
+			tabId: 17,
+			windowId: 4,
+			url: 'https://example.com/article'
+		}));
+	});
+});
 
 describe('isValidUrl', () => {
 	test('returns true for http URLs', () => {

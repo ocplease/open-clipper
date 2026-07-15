@@ -333,7 +333,7 @@ browser.runtime.onMessage.addListener((request: unknown) => {
 
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender, sendResponse: (response?: any) => void): true | undefined => {
 	if (typeof request === 'object' && request !== null) {
-		const typedRequest = request as { action: string; isActive?: boolean; hasHighlights?: boolean; tabId?: number; text?: string; section?: string; readerUrl?: string };
+		const typedRequest = request as { action: string; isActive?: boolean; hasHighlights?: boolean; tabId?: number; windowId?: number; text?: string; section?: string; readerUrl?: string };
 		
 		if (typedRequest.action === 'copy-to-clipboard' && typedRequest.text) {
 			// Use content script to copy to clipboard
@@ -407,16 +407,16 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "sidePanelOpened") {
-			if (sender.tab && sender.tab.windowId) {
-				sidePanelOpenWindows.add(sender.tab.windowId);
-				updateCurrentActiveTab(sender.tab.windowId);
+			const windowId = typedRequest.windowId ?? sender.tab?.windowId;
+			if (windowId !== undefined) {
+				sidePanelOpenWindows.add(windowId);
+				void updateCurrentActiveTab(windowId);
 			}
 		}
 
 		if (typedRequest.action === "sidePanelClosed") {
-			if (sender.tab && sender.tab.windowId) {
-				sidePanelOpenWindows.delete(sender.tab.windowId);
-			}
+			const windowId = typedRequest.windowId ?? sender.tab?.windowId;
+			if (windowId !== undefined) sidePanelOpenWindows.delete(windowId);
 		}
 
 		if (typedRequest.action === "highlighterModeChanged" && sender.tab && typedRequest.isActive !== undefined) {
@@ -545,9 +545,12 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "getActiveTab") {
-			browser.tabs.query({active: true, currentWindow: true}).then(async (tabs) => {
+			const query = typedRequest.windowId !== undefined
+				? { active: true, windowId: typedRequest.windowId }
+				: { active: true, lastFocusedWindow: true };
+			browser.tabs.query(query).then(async (tabs) => {
 				let currentTab = tabs[0];
-				// Fallback for when currentWindow has no tabs (e.g., debugging popup in DevTools)
+				// Fallback for extension surfaces that do not resolve a focused browser window.
 				if (!currentTab || !currentTab.id) {
 					const allActiveTabs = await browser.tabs.query({active: true});
 					currentTab = allActiveTabs.find(tab =>
@@ -555,7 +558,11 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 					) || allActiveTabs[0];
 				}
 				if (currentTab && currentTab.id) {
-					sendResponse({tabId: currentTab.id});
+					sendResponse({
+						tabId: currentTab.id,
+						windowId: currentTab.windowId,
+						url: isReaderPageUrl(currentTab.url) ?? currentTab.url ?? ''
+					});
 				} else {
 					sendResponse({error: 'No active tab found'});
 				}
@@ -579,17 +586,6 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 				console.error('Error opening options page:', error);
 				sendResponse({success: false, error: error instanceof Error ? error.message : String(error)});
 			}
-			return true;
-		}
-
-		if (typedRequest.action === "openClipperEditor" && typedRequest.tabId) {
-			browser.windows.create({
-				url: browser.runtime.getURL(`popup.html?context=library-editor&sourceTabId=${typedRequest.tabId}`),
-				type: 'popup',
-				width: 380,
-				height: 640
-			}).then(() => sendResponse({ success: true }))
-				.catch(error => sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) }));
 			return true;
 		}
 
@@ -882,7 +878,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 		await ensureContentScriptLoadedInBackground(tab.id);
 		await browser.tabs.sendMessage(tab.id, { action: "toggle-iframe" });
 	} else if (info.menuItemId === 'open-side-panel' && tab && tab.id && tab.windowId) {
-		chrome.sidePanel.open({ tabId: tab.id });
+		chrome.sidePanel.open({ windowId: tab.windowId });
 		sidePanelOpenWindows.add(tab.windowId);
 		await ensureContentScriptLoadedInBackground(tab.id);
 	} else if (info.menuItemId === 'copy-markdown-to-clipboard' && tab && tab.id) {
@@ -904,7 +900,7 @@ async function setupTabListeners() {
 	if (['chrome', 'brave', 'edge'].includes(browserType)) {
 		browser.tabs.onActivated.addListener(handleTabChange);
 		browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-			if (changeInfo.status === 'complete') {
+			if (changeInfo.status === 'complete' && tab.active) {
 				handleTabChange({ tabId, windowId: tab.windowId });
 			}
 		});
@@ -1081,16 +1077,21 @@ function supportsVisualLibrarySidePanel(): boolean {
 
 async function openVisualLibrary(tabId?: number, windowId?: number): Promise<boolean> {
 	if (!supportsVisualLibrarySidePanel()) return false;
-	if (tabId !== undefined) {
-		await chrome.sidePanel.open({ tabId });
-	} else if (windowId !== undefined) {
+	// Window-scoped panels follow the active tab. Tab-scoped panels remain tied
+	// to whichever tab originally opened them and can expose stale state.
+	if (windowId !== undefined) {
+		await chrome.sidePanel.open({ windowId });
+	} else if (tabId !== undefined) {
+		const tab = await browser.tabs.get(tabId);
+		if (tab.windowId === undefined) return false;
+		windowId = tab.windowId;
 		await chrome.sidePanel.open({ windowId });
 	} else {
 		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
 		const tab = tabs[0];
-		if (tab?.id === undefined) return false;
-		await chrome.sidePanel.open({ tabId: tab.id });
+		if (tab?.id === undefined || tab.windowId === undefined) return false;
 		windowId = tab.windowId;
+		await chrome.sidePanel.open({ windowId });
 	}
 	if (windowId !== undefined) sidePanelOpenWindows.add(windowId);
 	return true;

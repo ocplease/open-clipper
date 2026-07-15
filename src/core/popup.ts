@@ -40,8 +40,6 @@ let lastSelectedVault: string | null = null;
 const isSidePanel = window.location.pathname.includes('side-panel.html');
 const urlParams = new URLSearchParams(window.location.search);
 const isIframe = urlParams.get('context') === 'iframe';
-const isLibraryEditor = urlParams.get('context') === 'library-editor';
-const sourceTabId = Number(urlParams.get('sourceTabId')) || undefined;
 
 // Memoize compileTemplate with a short expiration and URL-sensitive key
 const memoizedCompileTemplate = memoizeWithExpiration(
@@ -295,9 +293,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 	try {
 		// Get the active tab via background script to handle Firefox compatibility
-		const response = sourceTabId
-			? { tabId: sourceTabId }
-			: await browser.runtime.sendMessage({ action: "getActiveTab" }) as { tabId?: number; error?: string };
+		const response = await browser.runtime.sendMessage({ action: "getActiveTab" }) as { tabId?: number; error?: string };
 		if (!response || response.error || !response.tabId) {
 			showError(getMessage('pleaseReload'));
 			return;
@@ -311,7 +307,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 		const openBehavior: Settings['openBehavior'] = isMobile && loadedSettings.openBehavior !== 'reader' ? 'popup' : loadedSettings.openBehavior;
 
 		// Check if we should open in an iframe, but only if the URL is valid
-		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'embedded' && !isIframe && !isSidePanel && !isLibraryEditor) {
+		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'embedded' && !isIframe && !isSidePanel) {
 			try {
 				const response = await browser.runtime.sendMessage({ action: "getActiveTabAndToggleIframe" }) as { success?: boolean; error?: string };
 				if (response && response.success) {
@@ -328,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 		}
 
 		// Check if we should open in reader mode
-		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'reader' && !isIframe && !isSidePanel && !isLibraryEditor) {
+		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'reader' && !isIframe && !isSidePanel) {
 			try {
 				const response = await browser.runtime.sendMessage({
 					action: "toggleReaderMode",

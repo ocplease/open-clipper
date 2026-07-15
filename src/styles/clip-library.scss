@@ -71,10 +71,14 @@
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow-y: auto;
+		overflow-x: hidden;
 		scrollbar-width: thin;
+		padding: 0.125rem 0.75rem 1rem;
+	}
+	.clip-feed-grid {
+		width: 100%;
 		column-count: 2;
 		column-gap: var(--library-gap);
-		padding: 0.125rem 0.75rem 1rem;
 	}
 	.clip-card {
 		position: relative;
@@ -236,6 +240,27 @@
 		font-weight: 600;
 		svg { width: 0.875rem; height: 0.875rem; flex: 0 0 auto; }
 		span { overflow: hidden; text-overflow: ellipsis; }
+	}
+	.library-selection-actions {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		min-width: 0;
+
+		.library-action {
+			width: 100%;
+			border-radius: 0;
+			white-space: nowrap;
+
+			&:first-child {
+				border-start-start-radius: var(--radius-s);
+				border-end-start-radius: var(--radius-s);
+			}
+			&:last-child {
+				border-start-end-radius: var(--radius-s);
+				border-end-end-radius: var(--radius-s);
+				box-shadow: inset 1px 0 0 rgba(var(--mono-rgb-100), 0.18);
+			}
+		}
 	}
 
 	.clip-detail-header {
@@ -431,6 +456,7 @@
 		padding-inline: 0.65rem;
 		font-size: var(--font-ui-smallest);
 		font-weight: 600;
+		&[hidden] { display: none; }
 		svg { width: 0.875rem; height: 0.875rem; flex: 0 0 auto; }
 		span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	}
@@ -446,7 +472,7 @@
 
 @media (max-width: 290px) {
 	.clip-library {
-		.clip-feed { column-count: 1; }
+		.clip-feed-grid { column-count: 1; }
 		.library-toolbar { grid-template-columns: 1fr; }
 		#clip-filter { max-width: none; width: 100%; }
 		.library-footer { grid-template-columns: 1fr; }

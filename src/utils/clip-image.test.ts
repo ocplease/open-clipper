@@ -13,6 +13,45 @@ describe('getClipImageCandidates', () => {
 		]);
 	});
 
+	it('uses the first image in Markdown before saved metadata and extracted HTML', () => {
+		expect(getClipImageCandidates({
+			pageUrl: 'https://example.com/articles/post',
+			metadataImages: ['/images/metadata.jpg'],
+			contentHtml: '<img src="/images/extracted.jpg">',
+			markdown: [
+				'---',
+				'image: /images/frontmatter.jpg',
+				'---',
+				'<img src="/images/first.jpg">',
+				'![Second](/images/second.jpg)'
+			].join('\n')
+		})).toEqual([
+			'https://example.com/images/first.jpg',
+			'https://example.com/images/second.jpg',
+			'https://example.com/images/frontmatter.jpg',
+			'https://example.com/images/metadata.jpg',
+			'https://example.com/images/extracted.jpg'
+		]);
+	});
+
+	it('skips YouTube video embeds and uses the thumbnail metadata', () => {
+		expect(getClipImageCandidates({
+			pageUrl: 'https://www.youtube.com/watch?v=abc123XYZ_0',
+			metadataImages: ['https://i.ytimg.com/vi/abc123XYZ_0/maxresdefault.jpg'],
+			markdown: '![Video](https://www.youtube.com/watch?v=abc123XYZ_0)'
+		})).toEqual([
+			'https://i.ytimg.com/vi/abc123XYZ_0/maxresdefault.jpg',
+			'https://i.ytimg.com/vi/abc123XYZ_0/hqdefault.jpg'
+		]);
+	});
+
+	it('derives a YouTube thumbnail when extraction provides no image', () => {
+		expect(getClipImageCandidates({
+			pageUrl: 'https://youtu.be/abc123XYZ_0',
+			markdown: 'Video notes'
+		})).toEqual(['https://i.ytimg.com/vi/abc123XYZ_0/hqdefault.jpg']);
+	});
+
 	it('skips obvious decorative images and prefers a high-resolution article image', () => {
 		const candidates = getClipImageCandidates({
 			pageUrl: 'https://example.com/post',
@@ -24,15 +63,15 @@ describe('getClipImageCandidates', () => {
 		expect(candidates).toEqual(['https://example.com/large.jpg']);
 	});
 
-	it('recovers images from frontmatter and Markdown for existing clips', () => {
+	it('recovers Markdown images before frontmatter for existing clips', () => {
 		const candidates = getSavedClipImageCandidates({
 			url: 'https://example.com/post',
 			imageUrl: '',
 			markdown: '---\nimage: "/cover.jpg"\n---\n\n![Body](/body.jpg)'
 		});
 		expect(candidates).toEqual([
-			'https://example.com/cover.jpg',
-			'https://example.com/body.jpg'
+			'https://example.com/body.jpg',
+			'https://example.com/cover.jpg'
 		]);
 	});
 

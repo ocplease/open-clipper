@@ -14,15 +14,16 @@ import {
 	listSavedClips,
 	updateSavedClip
 } from '../utils/saved-clips';
-import { incrementStat, setLocalStorage } from '../utils/storage-utils';
 import { isBlankPage, isRestrictedUrl, isValidUrl } from '../utils/active-tab-manager';
 import { ClipFilter, composeSelectedMarkdown, filterSavedClips } from '../utils/clip-library';
 import { renderMarkdownPreview } from '../utils/markdown-preview';
 import { getSavedClipImageCandidates } from '../utils/clip-image';
+import { incrementStat, setLocalStorage } from '../utils/storage-utils';
 
 let clips: SavedClip[] = [];
 let selectedClipIds = new Set<string>();
 let currentTabId: number | undefined;
+let currentWindowId: number | undefined;
 let currentHostname = '';
 let currentPageCanBeClipped = false;
 let actionInProgress = false;
@@ -65,12 +66,20 @@ function formatClipDate(value: string): string {
 
 function updateActions(): void {
 	const clipButton = element<HTMLButtonElement>('clip-current-page');
+	const saveButton = element<HTMLButtonElement>('save-selected-clips');
 	const copyButton = element<HTMLButtonElement>('copy-selected-clips');
 	clipButton.disabled = actionInProgress || !currentPageCanBeClipped;
+	saveButton.disabled = actionInProgress || selectedClipIds.size === 0;
 	copyButton.disabled = actionInProgress || selectedClipIds.size === 0;
 	element<HTMLSpanElement>('copy-selected-label').textContent = selectedClipIds.size > 0
 		? getMessage('copySelectedCount', selectedClipIds.size.toString())
 		: getMessage('copySelected');
+}
+
+function getSelectedClips(): SavedClip[] {
+	return clips
+		.filter(clip => selectedClipIds.has(clip.id))
+		.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 function loadClipImage(image: HTMLImageElement, candidates: string[], onExhausted: () => void): void {
@@ -410,7 +419,10 @@ function renderFeed(): void {
 		empty.appendChild(hint);
 		feed.appendChild(empty);
 	} else {
-		visibleClips.forEach(clip => feed.appendChild(createCard(clip)));
+		const grid = document.createElement('div');
+		grid.className = 'clip-feed-grid';
+		visibleClips.forEach(clip => grid.appendChild(createCard(clip)));
+		feed.appendChild(grid);
 	}
 
 	initializeIcons(feed);
@@ -435,12 +447,22 @@ async function loadClips(): Promise<void> {
 	}
 }
 
-async function refreshActiveTab(tabId?: number, url?: string): Promise<void> {
+async function refreshActiveTab(tabId?: number, url?: string, windowId?: number): Promise<void> {
 	try {
 		if (!tabId) {
-			const response = await browser.runtime.sendMessage({ action: 'getActiveTab' }) as { tabId?: number; error?: string };
+			const response = await browser.runtime.sendMessage({
+				action: 'getActiveTab',
+				windowId: windowId ?? currentWindowId
+			}) as {
+				tabId?: number;
+				windowId?: number;
+				url?: string;
+				error?: string;
+			};
 			if (!response?.tabId) throw new Error(response?.error || 'No active tab');
 			tabId = response.tabId;
+			windowId = response.windowId;
+			url = response.url;
 		}
 		if (!url) {
 			const response = await browser.runtime.sendMessage({ action: 'getTabInfo', tabId }) as {
@@ -450,6 +472,7 @@ async function refreshActiveTab(tabId?: number, url?: string): Promise<void> {
 			url = response?.tab?.url || '';
 		}
 		currentTabId = tabId;
+		if (windowId !== undefined) currentWindowId = windowId;
 		currentHostname = hostnameFromUrl(url);
 		currentPageCanBeClipped = isValidUrl(url) && !isBlankPage(url) && !isRestrictedUrl(url);
 	} catch {
@@ -463,47 +486,34 @@ async function refreshActiveTab(tabId?: number, url?: string): Promise<void> {
 }
 
 async function clipCurrentPage(): Promise<void> {
-	if (!currentTabId || !currentPageCanBeClipped || actionInProgress) return;
+	if (actionInProgress) return;
 	actionInProgress = true;
 	updateActions();
-	setStatus(getMessage('clippingCurrentPage'));
 	try {
+		// The side panel persists across tab changes, so cached tab state is never
+		// authoritative for an explicit clip action.
+		await refreshActiveTab();
+		if (!currentTabId || !currentPageCanBeClipped) {
+			setStatus(getMessage('activePageCannotBeClipped'), 'error', 3000);
+			return;
+		}
+		setStatus(getMessage('clippingCurrentPage'));
 		const result = await prepareCurrentPageClip(currentTabId);
 		if (result.requiresEditor) {
-			const response = await browser.runtime.sendMessage({
-				action: 'openClipperEditor',
-				tabId: currentTabId
-			}) as { success?: boolean; error?: string } | undefined;
-			if (!response?.success) throw new Error(response?.error || 'Unable to open the clip editor');
-			setStatus(getMessage('openedClipEditor'), 'info', 3000);
+			setStatus(getMessage('templateRequiresPromptInput'), 'error');
 			return;
 		}
 
 		const prepared = result.clip;
-		await saveToObsidian(
+		await addSavedClip(createSavedClipFromVariables(
 			prepared.fileContent,
-			prepared.noteName,
-			prepared.path,
+			prepared.template,
+			prepared.variables,
 			prepared.vault,
-			prepared.template.behavior
-		);
-		await incrementStat('addToObsidian', prepared.vault, prepared.path, prepared.url, prepared.variables['{{title}}']);
-		await setLocalStorage('lastSelectedVault', prepared.vault);
-
-		try {
-			await addSavedClip(createSavedClipFromVariables(
-				prepared.fileContent,
-				prepared.template,
-				prepared.variables,
-				prepared.vault,
-				prepared.path
-			));
-			await loadClips();
-			setStatus(getMessage('pageClipped'), 'success', 3000);
-		} catch (archiveError) {
-			console.error('Page saved to Obsidian but could not be archived:', archiveError);
-			setStatus(getMessage('clipSavedArchiveFailed'), 'error');
-		}
+			prepared.path
+		));
+		await loadClips();
+		setStatus(getMessage('pageClipped'), 'success', 3000);
 	} catch (error) {
 		console.error('Unable to clip current page:', error);
 		setStatus(getMessage('failedToClipCurrentPage'), 'error');
@@ -531,6 +541,33 @@ async function copySelectedClips(): Promise<void> {
 	}
 }
 
+async function saveSelectedClipsToObsidian(): Promise<void> {
+	if (selectedClipIds.size === 0 || actionInProgress) return;
+	actionInProgress = true;
+	updateActions();
+	try {
+		const selectedClips = getSelectedClips();
+		if (selectedClips.length === 0) return;
+
+		const primaryClip = selectedClips[0];
+		const noteName = selectedClips.length === 1
+			? primaryClip.title
+			: getMessage('selectedClipsNoteName', selectedClips.length.toString());
+		const markdown = composeSelectedMarkdown(clips, selectedClipIds);
+
+		await saveToObsidian(markdown, noteName, primaryClip.path, primaryClip.vault, 'create');
+		await incrementStat('addToObsidian', primaryClip.vault, primaryClip.path, primaryClip.url, noteName);
+		if (primaryClip.vault) await setLocalStorage('lastSelectedVault', primaryClip.vault);
+		setStatus(getMessage('selectedClipsAddedToObsidian', selectedClips.length.toString()), 'success', 3000);
+	} catch (error) {
+		console.error('Unable to add selected clips to Obsidian:', error);
+		setStatus(getMessage('failedToAddSelectedClipsToObsidian'), 'error');
+	} finally {
+		actionInProgress = false;
+		updateActions();
+	}
+}
+
 async function confirmDeleteClip(clip: SavedClip): Promise<void> {
 	if (!window.confirm(getMessage('deleteClipConfirm', clip.title))) return;
 	try {
@@ -548,6 +585,7 @@ function setupEvents(): void {
 	element<HTMLInputElement>('clip-search').addEventListener('input', renderFeed);
 	element<HTMLSelectElement>('clip-filter').addEventListener('change', renderFeed);
 	element<HTMLButtonElement>('clip-current-page').addEventListener('click', () => void clipCurrentPage());
+	element<HTMLButtonElement>('save-selected-clips').addEventListener('click', () => void saveSelectedClipsToObsidian());
 	element<HTMLButtonElement>('copy-selected-clips').addEventListener('click', () => void copySelectedClips());
 	element<HTMLButtonElement>('clip-detail-back').addEventListener('click', () => closeClipDetail());
 	element<HTMLButtonElement>('clip-detail-close').addEventListener('click', () => closeClipDetail());
@@ -585,9 +623,14 @@ function setupEvents(): void {
 
 	browser.runtime.onMessage.addListener((request: unknown): undefined => {
 		if (!request || typeof request !== 'object') return undefined;
-		const message = request as { action?: string; tabId?: number; url?: string };
+		const message = request as { action?: string; tabId?: number; windowId?: number; url?: string };
 		if (message.action === 'savedClipsChanged') void loadClips();
-		if (message.action === 'activeTabChanged') void refreshActiveTab(message.tabId, message.url);
+		if (message.action === 'activeTabChanged') {
+			if (currentWindowId !== undefined && message.windowId !== undefined && message.windowId !== currentWindowId) {
+				return undefined;
+			}
+			void refreshActiveTab(message.tabId, message.url, message.windowId);
+		}
 		if (message.action === 'triggerQuickClip') void clipCurrentPage();
 		return undefined;
 	});
@@ -603,9 +646,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 	element<HTMLButtonElement>('clip-detail-close').setAttribute('aria-label', getMessage('closeClipDetails'));
 	element<HTMLButtonElement>('delete-detail-clip').setAttribute('aria-label', getMessage('deleteClip'));
 	setupEvents();
-	void browser.runtime.sendMessage({ action: 'sidePanelOpened' });
-	window.addEventListener('beforeunload', () => {
-		void browser.runtime.sendMessage({ action: 'sidePanelClosed' });
-	});
 	await Promise.all([loadClips(), refreshActiveTab()]);
+	void browser.runtime.sendMessage({ action: 'sidePanelOpened', windowId: currentWindowId });
+	window.addEventListener('beforeunload', () => {
+		void browser.runtime.sendMessage({ action: 'sidePanelClosed', windowId: currentWindowId });
+	});
 });
