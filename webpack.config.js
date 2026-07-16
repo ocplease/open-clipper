@@ -6,6 +6,7 @@ const ZipPlugin = require('zip-webpack-plugin');
 const package = require('./package.json');
 const webpack = require('webpack');
 const TerserPlugin = require('terser-webpack-plugin');
+const dotenv = require('dotenv');
 
 // Remove .DS_Store files
 function removeDSStore(dir) {
@@ -21,6 +22,7 @@ function removeDSStore(dir) {
 }
 
 module.exports = (env, argv) => {
+	dotenv.config({ path: path.resolve(__dirname, '.env') });
 	const isFirefox = env.BROWSER === 'firefox';
 	const isSafari = env.BROWSER === 'safari';
 	const isProduction = argv.mode === 'production';
@@ -35,6 +37,11 @@ module.exports = (env, argv) => {
 
 	const outputDir = getOutputDir();
 	const browserName = isFirefox ? 'firefox' : (isSafari ? 'safari' : 'chrome');
+	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+	if (!supabaseUrl || !supabasePublishableKey) {
+		throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are required');
+	}
 
 	const mainConfig = {
 		mode: argv.mode,
@@ -170,6 +177,9 @@ module.exports = (env, argv) => {
 			},
 			new webpack.DefinePlugin({
 				'process.env.NODE_ENV': JSON.stringify(argv.mode),
+				'process.env.TARGET_BROWSER': JSON.stringify(browserName),
+				'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(supabaseUrl),
+				'process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(supabasePublishableKey),
 				'DEBUG_MODE': JSON.stringify(!isProduction)
 			}),
 			...(isProduction ? [

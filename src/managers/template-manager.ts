@@ -12,6 +12,11 @@ const STORAGE_KEY_PREFIX = 'template_';
 const TEMPLATE_LIST_KEY = 'template_list';
 const CHUNK_SIZE = 8000;
 const SIZE_WARNING_THRESHOLD = 6000;
+const XHS_TEMPLATE_ID = 'xhs-image-text-v1';
+const XHS_TEMPLATE_MIGRATION_KEY = 'xhs_image_text_template_v2_installed';
+const XHS_TRIGGER = 'https://www.xiaohongshu.com/explore/';
+const XHS_OLD_CONTENT_FORMAT = '{{content}}\n\n{{imageText}}';
+const XHS_CONTENT_FORMAT = '{{imageText}}\n\n{{content}}';
 
 export function setEditingTemplateIndex(index: number): void {
 	editingTemplateIndex = index;
@@ -54,6 +59,8 @@ export async function loadTemplates(): Promise<Template[]> {
 			templates = [defaultTemplate];
 			await saveTemplateSettings();
 		}
+
+		await installXhsTemplateOnce();
 
 		// After loading templates, update global property types
 		await updateGlobalPropertyTypes(templates);
@@ -130,6 +137,43 @@ export function createDefaultTemplate(): Template {
 		],
 		triggers: []
 	};
+}
+
+function createXhsTemplate(): Template {
+	return {
+		id: XHS_TEMPLATE_ID,
+		name: 'Xiaohongshu note',
+		behavior: 'create',
+		noteNameFormat: '{{title}}',
+		path: 'Clippings',
+		noteContentFormat: XHS_CONTENT_FORMAT,
+		context: '',
+		properties: [
+			{ id: 'xhs-title', name: 'title', value: '{{title}}' },
+			{ id: 'xhs-source', name: 'source', value: '{{url}}' },
+			{ id: 'xhs-author', name: 'author', value: '{{author|split:", "|wikilink|join}}' },
+			{ id: 'xhs-created', name: 'created', value: '{{date}}' },
+			{ id: 'xhs-tags', name: 'tags', value: 'clippings, xiaohongshu' },
+		],
+		triggers: [XHS_TRIGGER],
+	};
+}
+
+async function installXhsTemplateOnce(): Promise<void> {
+	const migration = await browser.storage.sync.get(XHS_TEMPLATE_MIGRATION_KEY);
+	if (migration[XHS_TEMPLATE_MIGRATION_KEY]) return;
+
+	const xhsTemplate = templates.find(template =>
+		template.id === XHS_TEMPLATE_ID || template.triggers?.includes(XHS_TRIGGER)
+	);
+	if (!xhsTemplate) {
+		templates.push(createXhsTemplate());
+		await saveTemplateSettings();
+	} else if (xhsTemplate.id === XHS_TEMPLATE_ID && xhsTemplate.noteContentFormat === XHS_OLD_CONTENT_FORMAT) {
+		xhsTemplate.noteContentFormat = XHS_CONTENT_FORMAT;
+		await saveTemplateSettings();
+	}
+	await browser.storage.sync.set({ [XHS_TEMPLATE_MIGRATION_KEY]: true });
 }
 
 export function getEditingTemplateIndex(): number {

@@ -141,7 +141,11 @@ export function createSavedClipFromVariables(
 	path: string
 ): SavedClip {
 	const url = variables['{{url}}'] || '';
-	const imageUrl = getClipImageCandidates({
+	const rawXhsPostImage = variables['{{xhsPostImage}}'];
+	const xhsPostImage = rawXhsPostImage
+		? getClipImageCandidates({ pageUrl: url, metadataImages: [rawXhsPostImage] })[0]
+		: '';
+	const imageUrl = xhsPostImage || getClipImageCandidates({
 		pageUrl: url,
 		metadataImages: [
 			variables['{{image}}'],

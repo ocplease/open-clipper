@@ -404,6 +404,7 @@
 		border: 1px solid var(--background-modifier-border);
 		border-radius: var(--radius-s);
 		background: var(--background-primary);
+		&[hidden] { display: none; }
 	}
 	#clip-markdown-panel {
 		--note-content-padding: 0.75rem;

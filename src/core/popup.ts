@@ -24,6 +24,8 @@ import { saveFile } from '../utils/file-utils';
 import { translatePage, getMessage, setupLanguageAndDirection } from '../utils/i18n';
 import { formatPropertyValue } from '../utils/shared';
 import { addSavedClip, createSavedClipFromVariables } from '../utils/saved-clips';
+import type { XhsNoteImages } from '../utils/xhs-images';
+import type { XhsOcrResponse } from '../utils/supabase-ocr';
 
 interface ReaderModeResponse {
 	success: boolean;
@@ -36,6 +38,7 @@ let templates: Template[] = [];
 let currentVariables: { [key: string]: string } = {};
 let currentTabId: number | undefined;
 let lastSelectedVault: string | null = null;
+let activePopupOcrNoteId: string | null = null;
 
 const isSidePanel = window.location.pathname.includes('side-panel.html');
 const urlParams = new URLSearchParams(window.location.search);
@@ -734,6 +737,9 @@ async function refreshFields(tabId: number, { checkTemplateTriggers = true, rebu
 
 				// Update variables panel if it's open
 				updateVariablesPanel(currentTemplate, currentVariables);
+				if (extractedData.xhsOcr) {
+					void completePopupOcr(extractedData.xhsOcr, tabId, currentUrl);
+				}
 			} else {
 				throw new Error('Unable to initialize page content.');
 			}
@@ -744,6 +750,38 @@ async function refreshFields(tabId: number, { checkTemplateTriggers = true, rebu
 		console.error('Error refreshing fields:', error);
 		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
 		showError(errorMessage);
+	}
+}
+
+async function completePopupOcr(ocr: XhsNoteImages, tabId: number, pageUrl: string): Promise<void> {
+	activePopupOcrNoteId = ocr.noteId;
+	const noteContentField = document.getElementById('note-content-field') as HTMLTextAreaElement | null;
+	const originalContent = noteContentField?.value;
+	try {
+		const response = await browser.runtime.sendMessage({
+			action: 'recognizeXhsImages',
+			noteId: ocr.noteId,
+			images: ocr.images,
+		}) as XhsOcrResponse;
+		if (!response.success) {
+			console.error('[Open Clipper] XHS OCR failed:', response.error, response.warnings || []);
+			return;
+		}
+		if (activePopupOcrNoteId !== ocr.noteId || currentTabId !== tabId) return;
+		const currentTab = await getTabInfo(tabId);
+		if (currentTab.url !== pageUrl || !currentTemplate) return;
+
+		currentVariables = { ...currentVariables, '{{imageText}}': response.imageText };
+		memoizedCompileTemplate.clear();
+		if (noteContentField && noteContentField.value === originalContent && currentTemplate.noteContentFormat) {
+			noteContentField.value = await compileTemplate(tabId, currentTemplate.noteContentFormat, currentVariables, pageUrl);
+		}
+		updateVariablesPanel(currentTemplate, currentVariables);
+		if (response.warnings?.length) console.warn('[Open Clipper] XHS OCR completed with warnings:', response.warnings);
+	} catch (error) {
+		console.error('[Open Clipper] XHS OCR failed:', error);
+	} finally {
+		if (activePopupOcrNoteId === ocr.noteId) activePopupOcrNoteId = null;
 	}
 }
 

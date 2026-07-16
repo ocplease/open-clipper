@@ -1,7 +1,7 @@
 import { SavedClip } from '../types/types';
 import browser from '../utils/browser-polyfill';
 import { addBrowserClassToHtml } from '../utils/browser-detection';
-import { prepareCurrentPageClip } from '../utils/clip-preparation';
+import { PreparedClip, prepareCurrentPageClip, updatePreparedClipImageText } from '../utils/clip-preparation';
 import { copyToClipboard } from '../utils/clipboard-utils';
 import { getMessage, setupLanguageAndDirection, translatePage } from '../utils/i18n';
 import { initializeIcons } from '../icons/icons';
@@ -19,6 +19,7 @@ import { ClipFilter, composeSelectedMarkdown, filterSavedClips } from '../utils/
 import { renderMarkdownPreview } from '../utils/markdown-preview';
 import { getSavedClipImageCandidates } from '../utils/clip-image';
 import { incrementStat, setLocalStorage } from '../utils/storage-utils';
+import { XhsOcrResponse } from '../utils/supabase-ocr';
 
 let clips: SavedClip[] = [];
 let selectedClipIds = new Set<string>();
@@ -29,7 +30,7 @@ let currentPageCanBeClipped = false;
 let actionInProgress = false;
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 let activeClipId: string | null = null;
-let activeDetailTab: 'preview' | 'markdown' = 'markdown';
+let activeDetailTab: 'preview' | 'markdown' = 'preview';
 let detailEditing = false;
 let markdownBeforeEdit = '';
 let feedFocusClipId: string | null = null;
@@ -288,7 +289,7 @@ function openClipDetail(clipId: string): void {
 	if (!clip) return;
 	feedFocusClipId = clipId;
 	activeClipId = clipId;
-	activeDetailTab = 'markdown';
+	activeDetailTab = 'preview';
 	detailEditing = false;
 	markdownBeforeEdit = clip.markdown;
 	element<HTMLElement>('library-view').hidden = true;
@@ -505,21 +506,62 @@ async function clipCurrentPage(): Promise<void> {
 		}
 
 		const prepared = result.clip;
-		await addSavedClip(createSavedClipFromVariables(
+		const savedClip = createSavedClipFromVariables(
 			prepared.fileContent,
 			prepared.template,
 			prepared.variables,
 			prepared.vault,
 			prepared.path
-		));
+		);
+		await addSavedClip(savedClip);
 		await loadClips();
 		setStatus(getMessage('pageClipped'), 'success', 3000);
+		if (prepared.deferredOcr) void completeDeferredOcr(savedClip, prepared);
 	} catch (error) {
 		console.error('Unable to clip current page:', error);
 		setStatus(getMessage('failedToClipCurrentPage'), 'error');
 	} finally {
 		actionInProgress = false;
 		updateActions();
+	}
+}
+
+async function completeDeferredOcr(savedClip: SavedClip, prepared: PreparedClip): Promise<void> {
+	if (!prepared.deferredOcr) return;
+	try {
+		const response = await browser.runtime.sendMessage({
+			action: 'recognizeXhsImages',
+			noteId: prepared.deferredOcr.noteId,
+			images: prepared.deferredOcr.images,
+		}) as XhsOcrResponse;
+		if (!response.success) {
+			if (response.warnings?.length) console.warn('[Open Clipper] XHS OCR diagnostics:', response.warnings);
+			const diagnostic = response.warnings?.[0];
+			throw new Error(diagnostic
+				? `${response.error || 'Image recognition failed'}: ${diagnostic.code} — ${diagnostic.message}`
+				: response.error || 'Image recognition failed');
+		}
+
+		const finalized = await updatePreparedClipImageText(prepared, response.imageText);
+		const updated = createSavedClipFromVariables(
+			finalized.fileContent,
+			finalized.template,
+			finalized.variables,
+			finalized.vault,
+			finalized.path,
+		);
+		await updateSavedClip({ ...updated, id: savedClip.id, createdAt: savedClip.createdAt });
+		await loadClips();
+
+		if (response.warnings?.length) {
+			console.warn('[Open Clipper] XHS OCR completed with warnings:', response.warnings);
+			setStatus(`Image text updated with ${response.warnings.length} warning(s).`, 'info', 5000);
+		} else {
+			setStatus('Image text added to the clip.', 'success', 3000);
+		}
+	} catch (error) {
+		console.error('[Open Clipper] Unable to update clip with XHS image text:', error);
+		setStatus(error instanceof Error ? error.message : 'Image recognition failed', 'error', 5000);
 	}
 }
 

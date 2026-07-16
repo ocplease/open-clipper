@@ -45,4 +45,20 @@ describe('saved clip metadata', () => {
 		);
 		expect(saved.imageUrl).toBe('https://i.ytimg.com/vi/abc123XYZ_0/maxresdefault.jpg');
 	});
+
+	it('prioritizes the first XHS post image for the clip card', () => {
+		const saved = createSavedClipFromVariables(
+			'![Unrelated image](https://example.com/avatar.jpg)',
+			template,
+			{
+				'{{url}}': 'https://www.xiaohongshu.com/explore/6a4cd4fc0000000006030b9b',
+				'{{title}}': 'XHS note',
+				'{{image}}': 'https://example.com/social.jpg',
+				'{{xhsPostImage}}': 'https://sns-webpic-qc.xhscdn.com/first-post-image.jpg'
+			},
+			'Notes',
+			'Clippings'
+		);
+		expect(saved.imageUrl).toBe('https://sns-webpic-qc.xhscdn.com/first-post-image.jpg');
+	});
 });

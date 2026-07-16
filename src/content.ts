@@ -12,6 +12,8 @@ import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';
 import { updateSidebarWidth, addResizeHandle, cleanupResizeHandlers } from './utils/iframe-resize';
 import { parseForClip } from './utils/clip-utils';
+import { extractXhsMainImages, isXhsNoteUrl } from './utils/xhs-images';
+import { XhsNoteImages } from './utils/xhs-images';
 
 declare global {
 	interface Window {
@@ -106,6 +108,7 @@ declare global {
 		wordCount: number;
 		language: string;
 		metaTags: { name?: string | null; property?: string | null; content: string | null }[];
+		xhsOcr?: XhsNoteImages;
 	}
 
 	browser.runtime.onMessage.addListener((request: any, sender, sendResponse) => {
@@ -222,6 +225,15 @@ declare global {
 				const extractedContent: { [key: string]: string } = {
 					...defuddled.variables,
 				};
+				let xhsOcr: XhsNoteImages | undefined;
+
+				// XHS keeps the main note's carousel in note.imageList and comments in
+				// a separate state branch. Only send that trusted note-level list to OCR.
+				if (process.env.TARGET_BROWSER === 'chrome' && isXhsNoteUrl(document.URL)) {
+					extractedContent.imageText = '';
+					xhsOcr = await extractXhsMainImages(document, document.URL) || undefined;
+					if (xhsOcr?.images[0]?.url) extractedContent.xhsPostImage = xhsOcr.images[0].url;
+				}
 
 				// Create a new DOMParser
 				const parser = new DOMParser();
@@ -283,6 +295,7 @@ declare global {
 					site: defuddled.site,
 					title: defuddled.title,
 					wordCount: defuddled.wordCount,
+					xhsOcr,
 					metaTags: defuddled.metaTags || []
 				};
 				if (defuddled.title) {

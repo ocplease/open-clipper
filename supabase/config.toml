@@ -1,0 +1,4 @@
+project_id = "znqhrajiolikuzcqsabg"
+
+[functions.recognize-xhs-images]
+verify_jwt = true

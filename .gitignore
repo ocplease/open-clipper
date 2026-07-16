@@ -23,4 +23,5 @@ assets/shared
 .context
 .cursorrules
 .env
+supabase/.temp/
 context/

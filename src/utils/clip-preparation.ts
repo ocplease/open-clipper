@@ -9,6 +9,7 @@ import { formatPropertyValue } from './shared';
 import { getLocalStorage, loadSettings, Settings } from './storage-utils';
 import { unescapeValue } from './string-utils';
 import browser from './browser-polyfill';
+import { XhsNoteImages } from './xhs-images';
 
 export interface PreparedClip {
 	tabId: number;
@@ -19,6 +20,7 @@ export interface PreparedClip {
 	noteName: string;
 	path: string;
 	vault: string;
+	deferredOcr?: XhsNoteImages;
 }
 
 export type ClipPreparationResult =
@@ -108,7 +110,36 @@ export async function prepareCurrentPageClip(tabId: number): Promise<ClipPrepara
 			fileContent: await generateFrontmatter(compiledProperties) + noteContent,
 			noteName: noteName.trim(),
 			path,
-			vault: chooseVault(template, settings, rememberedVault)
+			vault: chooseVault(template, settings, rememberedVault),
+			deferredOcr: extracted.xhsOcr
 		}
+	};
+}
+
+export async function updatePreparedClipImageText(prepared: PreparedClip, imageText: string): Promise<PreparedClip> {
+	const settings = await loadSettings();
+	const variables = { ...prepared.variables, '{{imageText}}': imageText };
+	const typeMap = new Map(settings.propertyTypes.map(type => [type.name, type.type]));
+	const [compiledProperties, noteName, path, noteContent] = await Promise.all([
+		Promise.all(prepared.template.properties.map(async property => {
+			const compiled = await compileTemplate(prepared.tabId, unescapeValue(property.value), variables, prepared.url);
+			return {
+				...property,
+				value: formatPropertyValue(compiled, typeMap.get(property.name) || 'text', property.value)
+			} as Property;
+		})),
+		compileTemplate(prepared.tabId, prepared.template.noteNameFormat, variables, prepared.url),
+		compileTemplate(prepared.tabId, prepared.template.path, variables, prepared.url),
+		prepared.template.noteContentFormat
+			? compileTemplate(prepared.tabId, prepared.template.noteContentFormat, variables, prepared.url)
+			: Promise.resolve('')
+	]);
+
+	return {
+		...prepared,
+		variables,
+		fileContent: await generateFrontmatter(compiledProperties) + noteContent,
+		noteName: noteName.trim(),
+		path,
 	};
 }

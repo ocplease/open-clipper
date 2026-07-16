@@ -5,6 +5,9 @@ import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
 import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
+import { recognizeXhsImages } from './utils/supabase-ocr';
+import { XhsOcrResponse } from './utils/supabase-ocr';
+import { XhsImageReference } from './utils/xhs-images';
 
 const YOUTUBE_EMBED_RULE_ID = 9001;
 const YOUTUBE_INNERTUBE_RULE_ID = 9002;
@@ -114,6 +117,21 @@ let readerModeState: { [tabId: number]: boolean } = {};
 let hasHighlights = false;
 let isContextMenuCreating = false;
 let popupPorts: { [tabId: number]: browser.Runtime.Port } = {};
+const xhsOcrJobs = new Map<string, Promise<XhsOcrResponse>>();
+
+function getOrStartXhsOcr(noteId: string, images: XhsImageReference[]): Promise<XhsOcrResponse> {
+	const existing = xhsOcrJobs.get(noteId);
+	if (existing) return existing;
+	const job = recognizeXhsImages(noteId, images);
+	xhsOcrJobs.set(noteId, job);
+	const scheduleCleanup = () => {
+		setTimeout(() => {
+			if (xhsOcrJobs.get(noteId) === job) xhsOcrJobs.delete(noteId);
+		}, 5 * 60_000);
+	};
+	void job.then(scheduleCleanup, scheduleCleanup);
+	return job;
+}
 
 async function injectContentScript(tabId: number): Promise<void> {
 	if (browser.scripting) {
@@ -361,6 +379,23 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		// fetchProxy is handled by a separate listener below
+
+		if (typedRequest.action === 'recognizeXhsImages') {
+			const payload = request as { noteId?: string; images?: XhsImageReference[] };
+			if (!payload.noteId || !Array.isArray(payload.images)) {
+				sendResponse({ success: false, imageText: '', imagesProcessed: 0, error: 'Invalid image-recognition request' });
+				return true;
+			}
+			getOrStartXhsOcr(payload.noteId, payload.images)
+				.then(sendResponse)
+				.catch(error => sendResponse({
+					success: false,
+					imageText: '',
+					imagesProcessed: 0,
+					error: error instanceof Error ? error.message : String(error),
+				}));
+			return true;
+		}
 
 		if (typedRequest.action === "extractContent" && sender.tab && sender.tab.id) {
 			browser.tabs.sendMessage(sender.tab.id, request).then(sendResponse);

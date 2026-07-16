@@ -12,6 +12,7 @@ import {
 	wrapElementWithMark,
 	wrapTextWithMark
 } from './dom-utils';
+import { XhsNoteImages } from './xhs-images';
 
 // Define ElementHighlightData type inline since it's not exported from highlighter.ts
 interface ElementHighlightData extends HighlightData {
@@ -62,6 +63,7 @@ interface ContentResponse {
 	wordCount: number;
 	language: string;
 	metaTags: { name?: string | null; property?: string | null; content: string | null }[];
+	xhsOcr?: XhsNoteImages;
 }
 
 async function sendExtractRequest(tabId: number): Promise<ContentResponse> {

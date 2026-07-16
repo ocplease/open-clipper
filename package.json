@@ -57,6 +57,7 @@
 		"zip-webpack-plugin": "^4.0.1"
 	},
 	"dependencies": {
+		"@supabase/supabase-js": "^2.110.6",
 		"@types/safari-extension": "^0.0.33",
 		"dayjs": "^1.11.13",
 		"defuddle": "^0.19.0",
