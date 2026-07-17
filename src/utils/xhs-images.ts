@@ -27,6 +27,27 @@ export function isXhsNoteUrl(pageUrl: string): boolean {
 	return getNoteId(pageUrl) !== null;
 }
 
+function getXhsMediaImageUrl(image: HTMLImageElement, pageUrl: string): string {
+	const rawUrl = image.currentSrc
+		|| image.getAttribute('src')
+		|| image.getAttribute('data-src')
+		|| image.getAttribute('data-original')
+		|| '';
+	if (!rawUrl) return '';
+	try {
+		const url = new URL(rawUrl.replace(/^http:/, 'https:'), pageUrl);
+		return isAllowedImageUrl(url.href) ? url.href : '';
+	} catch {
+		return '';
+	}
+}
+
+function replaceInlineImagesWithAltText(container: Element): void {
+	container.querySelectorAll('img').forEach(image => {
+		image.replaceWith(image.ownerDocument.createTextNode(image.getAttribute('alt') || ''));
+	});
+}
+
 /**
  * XHS opens notes from the feed as an SPA modal while leaving the entire feed
  * mounted behind it. Give article extraction a document containing only the
@@ -44,8 +65,44 @@ export function createXhsPostExtractionDocument(doc: Document, pageUrl: string):
 	scoped.head.appendChild(base);
 
 	const article = scoped.createElement('article');
-	article.appendChild(activeNote.cloneNode(true));
-	article.querySelectorAll('.comments-container').forEach(element => element.remove());
+	const titleText = activeNote.querySelector('.note-content .title')?.textContent?.trim() || '';
+	if (titleText) {
+		const title = scoped.createElement('h1');
+		title.textContent = titleText;
+		article.appendChild(title);
+	}
+
+	const seenImages = new Set<string>();
+	for (const sourceImage of Array.from(activeNote.querySelectorAll<HTMLImageElement>('.media-container img'))) {
+		const imageUrl = getXhsMediaImageUrl(sourceImage, pageUrl);
+		if (!imageUrl) continue;
+		const parsedUrl = new URL(imageUrl);
+		// XHS appends resize/format variants after `!` and in the query string.
+		// Treat those variants as the same underlying post image.
+		const identity = parsedUrl.pathname.split('!')[0];
+		if (seenImages.has(identity)) continue;
+		seenImages.add(identity);
+
+		const image = scoped.createElement('img');
+		image.src = imageUrl;
+		image.alt = sourceImage.alt || titleText || `Post image ${seenImages.size}`;
+		article.appendChild(image);
+	}
+
+	const description = activeNote.querySelector('.note-content .desc');
+	if (description) {
+		const mainText = description.cloneNode(true) as Element;
+		replaceInlineImagesWithAltText(mainText);
+		article.appendChild(mainText);
+	} else {
+		const noteContent = activeNote.querySelector('.note-content')?.cloneNode(true) as Element | undefined;
+		if (noteContent) {
+			noteContent.querySelectorAll('.title, .bottom-container').forEach(element => element.remove());
+			replaceInlineImagesWithAltText(noteContent);
+			article.appendChild(noteContent);
+		}
+	}
+
 	scoped.body.appendChild(article);
 	return scoped;
 }

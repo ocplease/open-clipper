@@ -95,8 +95,19 @@ describe('XHS main-note image extraction', () => {
 				<main class="feeds-page"><img src="https://sns-webpic-qc.xhscdn.com/other-post.jpg"></main>
 				<div class="note-detail-mask">
 					<div class="note-container">
-						<div class="media-container"><img src="https://sns-webpic-qc.xhscdn.com/current-post.jpg"></div>
-						<div class="note-content"><h1>Current post</h1><p>Current post body</p></div>
+						<div class="media-container">
+							<img src="https://sns-webpic-qc.xhscdn.com/current-post.jpg!nd_dft_webp_3?size=large">
+							<img src="https://sns-webpic-qc.xhscdn.com/current-post.jpg!nd_prv_webp_3?size=thumbnail">
+							<img src="https://sns-webpic-qc.xhscdn.com/current-post-2.jpg">
+						</div>
+						<div class="interaction-container">
+							<div class="author-container"><img src="https://sns-avatar-qc.xhscdn.com/avatar.jpg">Author</div>
+							<div class="note-content">
+								<div class="title">Current post</div>
+								<div class="desc">Current post body <img alt="smile" src="https://sns-webpic-qc.xhscdn.com/emoji.png"></div>
+								<div class="bottom-container">Date and controls</div>
+							</div>
+						</div>
 						<div class="comments-container"><img src="https://sns-webpic-qc.xhscdn.com/comment.jpg"></div>
 					</div>
 				</div>
@@ -106,8 +117,17 @@ describe('XHS main-note image extraction', () => {
 		const scoped = createXhsPostExtractionDocument(doc, PAGE_URL);
 
 		expect(scoped.body.textContent).toContain('Current post body');
-		expect(scoped.body.innerHTML).toContain('current-post.jpg');
+		expect(scoped.querySelector('h1')?.textContent).toBe('Current post');
+		expect(Array.from(scoped.querySelectorAll<HTMLImageElement>('article > img')).map(image => image.src)).toEqual([
+			'https://sns-webpic-qc.xhscdn.com/current-post.jpg!nd_dft_webp_3?size=large',
+			'https://sns-webpic-qc.xhscdn.com/current-post-2.jpg',
+		]);
+		expect(scoped.body.textContent).toContain('smile');
+		expect(scoped.body.textContent).not.toContain('Author');
+		expect(scoped.body.textContent).not.toContain('Date and controls');
 		expect(scoped.body.innerHTML).not.toContain('other-post.jpg');
+		expect(scoped.body.innerHTML).not.toContain('avatar.jpg');
+		expect(scoped.body.innerHTML).not.toContain('emoji.png');
 		expect(scoped.body.innerHTML).not.toContain('comment.jpg');
 	});
 
