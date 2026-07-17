@@ -116,7 +116,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			};
 			headers = {
 				...headers,
-				'HTTP-Referer': 'https://obsidian.md/',
+				'HTTP-Referer': 'https://github.com/ocplease/open-clipper',
 				'X-Title': 'Open Clipper',
 				'Authorization': `Bearer ${provider.apiKey}`
 			};
@@ -147,7 +147,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			};
 			headers = {
 				...headers,
-				'HTTP-Referer': 'https://obsidian.md/',
+				'HTTP-Referer': 'https://github.com/ocplease/open-clipper',
 				'X-Title': 'Open Clipper',
 				'Authorization': `Bearer ${provider.apiKey}`
 			};

@@ -283,7 +283,7 @@
 		}
 	},
 	"extensionDescription": {
-		"message": "Web se content ko ek private aur durable format mein save karein jise aap offline access kar sakte hain. Obsidian ka official browser extension."
+		"message": "Web se content ko ek private aur durable format mein save karein jise aap offline access kar sakte hain."
 	},
 	"extensionName": {
 		"message": "Open Clipper"

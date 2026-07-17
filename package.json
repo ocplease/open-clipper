@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-clipper",
 	"version": "1.7.0",
-	"description": "Official web clipper for Obsidian.",
+	"description": "Open-source web clipper for saving web content as durable Markdown.",
 	"bin": {
 		"obsidian-clipper": "./dist/cli.cjs"
 	},

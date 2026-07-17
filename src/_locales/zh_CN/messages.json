@@ -283,7 +283,7 @@
 		}
 	},
 	"extensionDescription": {
-		"message": "以私密且持久的格式保存网页内容，可离线访问。Obsidian 官方浏览器扩展。"
+		"message": "以私密且持久的格式保存网页内容，可离线访问。"
 	},
 	"extensionName": {
 		"message": "Open Clipper"

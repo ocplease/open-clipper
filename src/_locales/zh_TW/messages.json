@@ -283,7 +283,7 @@
 		}
 	},
 	"extensionDescription": {
-		"message": "將網路內容以私密且穩定的格式儲存下來，供您離線存取使用。這是 Obsidian 官方推出的瀏覽器擴充套件。"
+		"message": "將網路內容以私密且穩定的格式儲存下來，供您離線存取使用。"
 	},
 	"extensionName": {
 		"message": "Open Clipper"

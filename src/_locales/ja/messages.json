@@ -283,7 +283,7 @@
 		}
 	},
 	"extensionDescription": {
-		"message": "Webコンテンツをプライベートで永続的なオフラインアクセス可能な形式で保存します。Obsidianの公式ブラウザ拡張機能です。"
+		"message": "Webコンテンツをプライベートで永続的なオフラインアクセス可能な形式で保存します。"
 	},
 	"extensionName": {
 		"message": "Open Clipper"

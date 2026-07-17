@@ -1,21 +1,24 @@
-Open Clipper helps you highlight and capture the web in your favorite browser. Anything you save is stored as durable Markdown files that you can read offline, and preserve for the long term.
+# Open Clipper
 
-- **[Download Web Clipper](https://obsidian.md/clipper)**
-- **[Documentation](https://help.obsidian.md/web-clipper)**
-- **[Troubleshooting](https://help.obsidian.md/web-clipper/troubleshoot)**
+Open Clipper helps you highlight and capture the web as durable Markdown that you can keep offline, copy, or save to an Obsidian vault.
+
+Open Clipper is an independent open-source project. It is not affiliated with, endorsed by, or the official browser extension of Obsidian.
+
+- **[Source code](https://github.com/ocplease/open-clipper)**
+- **[Releases](https://github.com/ocplease/open-clipper/releases)**
+- **[Support and bug reports](https://github.com/ocplease/open-clipper/issues)**
 
 ## Get started
 
-Install the extension by downloading it from the official directory for your browser:
+Open Clipper is not yet published in a browser extension store. To try it locally:
 
-- **[Chrome Web Store](https://chromewebstore.google.com/detail/obsidian-web-clipper/cnjifjpddelmedmihgijeibhnjfabmlf)** for Chrome, Brave, Arc, Orion, and other Chromium-based browsers.
-- **[Firefox Add-Ons](https://addons.mozilla.org/en-US/firefox/addon/web-clipper-obsidian/)** for Firefox and Firefox Mobile.
-- **[Safari Extensions](https://apps.apple.com/us/app/obsidian-web-clipper/id6720708363)** for macOS, iOS, and iPadOS.
-- **[Edge Add-Ons](https://microsoftedge.microsoft.com/addons/detail/obsidian-web-clipper/eigdjhmgnaaeaonimdklocfekkaanfme)** for Microsoft Edge.
+1. Create a production build with `npm run build:chrome`.
+2. Open `chrome://extensions` in a Chromium browser.
+3. Enable **Developer mode**, choose **Load unpacked**, and select the `dist` directory.
 
 ## Use the extension
 
-Documentation is available on the [Obsidian Help site](https://help.obsidian.md/web-clipper), which covers how to use [highlighting](https://help.obsidian.md/web-clipper/highlight), [templates](https://help.obsidian.md/web-clipper/templates), [variables](https://help.obsidian.md/web-clipper/variables), [filters](https://help.obsidian.md/web-clipper/filters), and more.
+Open Clipper retains compatibility with Obsidian Web Clipper templates and workflows. The upstream [Obsidian Web Clipper documentation](https://help.obsidian.md/web-clipper) covers highlighting, templates, variables, and filters; Open Clipper-specific support is handled in this repository's [issue tracker](https://github.com/ocplease/open-clipper/issues).
 
 ## Contribute
 
@@ -25,7 +28,7 @@ You can help translate Web Clipper into your language. Submit your translation v
 
 ### Features and bug fixes
 
-See the [help wanted](https://github.com/obsidianmd/obsidian-clipper/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) tag for issues where contributions are welcome.
+See the [Open Clipper issues](https://github.com/ocplease/open-clipper/issues) for current bugs and feature requests.
 
 ## Roadmap
 
