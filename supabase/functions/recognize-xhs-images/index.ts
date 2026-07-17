@@ -28,9 +28,19 @@ interface OcrWarning {
 }
 
 class GeminiBatchError extends Error {
-  constructor(public code: string, message: string, public retryable: boolean) {
+  constructor(
+    public code: string,
+    message: string,
+    public retryable: boolean,
+    public quotaExceeded = false,
+  ) {
     super(message);
   }
+}
+
+interface OcrModel {
+  id: string;
+  structuredOutput: boolean;
 }
 
 const DAILY_IMAGE_LIMIT = 30;
@@ -38,7 +48,11 @@ const MAX_REQUEST_CHARS = 120_000;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_BATCH_BYTES = 12 * 1024 * 1024;
 const MAX_BATCH_IMAGES = 4;
-const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-3.5-flash';
+const OCR_MODELS: readonly OcrModel[] = [
+  { id: 'gemini-3.1-flash-lite', structuredOutput: true },
+  { id: 'gemma-4-31b-it', structuredOutput: false },
+  { id: 'gemma-4-26b-a4b-it', structuredOutput: false },
+];
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,13 +147,18 @@ function createBatches(images: DownloadedImage[]): DownloadedImage[][] {
   return batches;
 }
 
-async function recognizeBatch(images: DownloadedImage[], apiKey: string): Promise<Map<number, string>> {
+async function recognizeBatch(
+  images: DownloadedImage[],
+  apiKey: string,
+  model: OcrModel,
+): Promise<Map<number, string>> {
   const parts: Record<string, unknown>[] = [{
     text: [
       'Convert the visible text in each supplied image to faithful Markdown.',
       'Preserve the original language, reading order, headings, lists, tables, and code.',
       'Do not summarize, translate, caption decorative imagery, or invent missing text.',
       'Return one JSON item for every image index. Use an empty markdown string only when no text is visible.',
+      'Return raw JSON only, with no Markdown code fence, in the shape {"images":[{"index":1,"markdown":"..."}]}.',
     ].join(' '),
   }];
 
@@ -150,34 +169,36 @@ async function recognizeBatch(images: DownloadedImage[], apiKey: string): Promis
 
   let response: Response;
   try {
+    const generationConfig: Record<string, unknown> = { temperature: 0 };
+    if (model.structuredOutput) {
+      generationConfig.responseMimeType = 'application/json';
+      generationConfig.responseSchema = {
+        type: 'OBJECT',
+        properties: {
+          images: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                index: { type: 'INTEGER' },
+                markdown: { type: 'STRING' },
+              },
+              required: ['index', 'markdown'],
+            },
+          },
+        },
+        required: ['images'],
+      };
+    }
+
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.id)}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'OBJECT',
-            properties: {
-              images: {
-                type: 'ARRAY',
-                items: {
-                  type: 'OBJECT',
-                  properties: {
-                    index: { type: 'INTEGER' },
-                    markdown: { type: 'STRING' },
-                  },
-                  required: ['index', 'markdown'],
-                },
-              },
-            },
-            required: ['images'],
-          },
-        },
+          contents: [{ role: 'user', parts }],
+          generationConfig,
         }),
         signal: AbortSignal.timeout(90_000),
       },
@@ -186,7 +207,7 @@ async function recognizeBatch(images: DownloadedImage[], apiKey: string): Promis
     const isTimeout = error instanceof DOMException && error.name === 'TimeoutError';
     throw new GeminiBatchError(
       isTimeout ? 'GEMINI_TIMEOUT' : 'GEMINI_NETWORK_ERROR',
-      isTimeout ? 'Gemini did not respond within 90 seconds' : 'Unable to reach the Gemini API',
+      isTimeout ? `${model.id} did not respond within 90 seconds` : `Unable to reach ${model.id}`,
       true,
     );
   }
@@ -196,8 +217,16 @@ async function recognizeBatch(images: DownloadedImage[], apiKey: string): Promis
     const providerCode = String(payload?.error?.status || `HTTP_${response.status}`).replace(/[^A-Z0-9_]/gi, '_').toUpperCase();
     const providerMessage = typeof payload?.error?.message === 'string'
       ? payload.error.message.slice(0, 500)
-      : `Gemini returned HTTP ${response.status}`;
-    throw new GeminiBatchError(`GEMINI_${providerCode}`, providerMessage, response.status === 429 || response.status >= 500);
+      : `${model.id} returned HTTP ${response.status}`;
+    const quotaExceeded = response.status === 429
+      || providerCode === 'RESOURCE_EXHAUSTED'
+      || providerCode === 'QUOTA_EXCEEDED';
+    throw new GeminiBatchError(
+      `GEMINI_${providerCode}`,
+      `${model.id}: ${providerMessage}`,
+      quotaExceeded || response.status >= 500,
+      quotaExceeded,
+    );
   }
   const text = payload?.candidates?.[0]?.content?.parts
     ?.map((part: any) => typeof part?.text === 'string' ? part.text : '')
@@ -207,14 +236,14 @@ async function recognizeBatch(images: DownloadedImage[], apiKey: string): Promis
     const blockReason = payload?.promptFeedback?.blockReason;
     const finishReason = payload?.candidates?.[0]?.finishReason;
     const detail = blockReason || finishReason || 'no text candidate';
-    throw new GeminiBatchError('GEMINI_EMPTY_RESPONSE', `Gemini returned no text (${detail})`, false);
+    throw new GeminiBatchError('GEMINI_EMPTY_RESPONSE', `${model.id} returned no text (${detail})`, false);
   }
 
   let parsed: any;
   try {
     parsed = JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
   } catch {
-    throw new GeminiBatchError('GEMINI_INVALID_JSON', 'Gemini returned text that did not match the requested JSON schema', true);
+    throw new GeminiBatchError('GEMINI_INVALID_JSON', `${model.id} returned invalid JSON`, true);
   }
   const expected = new Set(images.map(image => image.index));
   const output = new Map<number, string>();
@@ -229,16 +258,21 @@ async function recognizeBatch(images: DownloadedImage[], apiKey: string): Promis
 
 async function recognizeBatchWithRetry(images: DownloadedImage[], apiKey: string): Promise<Map<number, string>> {
   let lastError: GeminiBatchError | null = null;
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      return await recognizeBatch(images, apiKey);
-    } catch (error) {
-      lastError = error instanceof GeminiBatchError
-        ? error
-        : new GeminiBatchError('GEMINI_UNKNOWN_ERROR', 'Unexpected Gemini response-processing error', false);
-      if (!lastError.retryable || attempt === 2) break;
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  for (const model of OCR_MODELS) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await recognizeBatch(images, apiKey, model);
+      } catch (error) {
+        lastError = error instanceof GeminiBatchError
+          ? error
+          : new GeminiBatchError('GEMINI_UNKNOWN_ERROR', `Unexpected ${model.id} response-processing error`, false);
+        if (lastError.quotaExceeded) break;
+        if (!lastError.retryable || attempt === 2) throw lastError;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
+
+    if (!lastError?.quotaExceeded) break;
   }
   throw lastError || new GeminiBatchError('GEMINI_UNKNOWN_ERROR', 'Unknown Gemini failure', false);
 }

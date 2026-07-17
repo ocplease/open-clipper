@@ -27,6 +27,29 @@ export function isXhsNoteUrl(pageUrl: string): boolean {
 	return getNoteId(pageUrl) !== null;
 }
 
+/**
+ * XHS opens notes from the feed as an SPA modal while leaving the entire feed
+ * mounted behind it. Give article extraction a document containing only the
+ * active note so feed cards and comments cannot leak into the clipped content.
+ */
+export function createXhsPostExtractionDocument(doc: Document, pageUrl: string): Document {
+	if (!isXhsNoteUrl(pageUrl)) return doc;
+	const activeNote = doc.querySelector('.note-detail-mask .note-container');
+	if (!activeNote) return doc;
+
+	const scoped = doc.implementation.createHTMLDocument(doc.title);
+	scoped.documentElement.lang = doc.documentElement.lang;
+	const base = scoped.createElement('base');
+	base.href = pageUrl;
+	scoped.head.appendChild(base);
+
+	const article = scoped.createElement('article');
+	article.appendChild(activeNote.cloneNode(true));
+	article.querySelectorAll('.comments-container').forEach(element => element.remove());
+	scoped.body.appendChild(article);
+	return scoped;
+}
+
 // XHS serializes a JavaScript object rather than strict JSON and occasionally
 // uses bare `undefined` values. Normalize those tokens without touching strings;
 // never evaluate page-owned JavaScript.
@@ -129,6 +152,11 @@ function extractFromDocument(doc: Document, noteId: string): XhsNoteImages | nul
 	return null;
 }
 
+export function extractXhsMainImagesFromDocument(doc: Document, pageUrl: string): XhsNoteImages | null {
+	const noteId = getNoteId(pageUrl);
+	return noteId ? extractFromDocument(doc, noteId) : null;
+}
+
 export async function extractXhsMainImages(
 	doc: Document,
 	pageUrl: string,
@@ -137,7 +165,7 @@ export async function extractXhsMainImages(
 	const noteId = getNoteId(pageUrl);
 	if (!noteId) return null;
 
-	const currentState = extractFromDocument(doc, noteId);
+	const currentState = extractXhsMainImagesFromDocument(doc, pageUrl);
 	if (currentState) return currentState;
 
 	try {

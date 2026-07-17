@@ -12,7 +12,12 @@ import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';
 import { updateSidebarWidth, addResizeHandle, cleanupResizeHandlers } from './utils/iframe-resize';
 import { parseForClip } from './utils/clip-utils';
-import { extractXhsMainImages, isXhsNoteUrl } from './utils/xhs-images';
+import {
+	createXhsPostExtractionDocument,
+	extractXhsMainImages,
+	extractXhsMainImagesFromDocument,
+	isXhsNoteUrl,
+} from './utils/xhs-images';
 import { XhsNoteImages } from './utils/xhs-images';
 
 declare global {
@@ -123,6 +128,15 @@ declare global {
 			return true;
 		}
 
+		if (request.action === "getXhsMainImages") {
+			extractXhsMainImages(document, request.pageUrl || document.URL).then((xhsOcr) => {
+				sendResponse({ success: true, xhsOcr });
+			}).catch((error: unknown) => {
+				sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+			});
+			return true;
+		}
+
 		if (request.action === "toggle-iframe") {
 			toggleIframe().then(() => {
 				sendResponse({ success: true });
@@ -216,7 +230,11 @@ declare global {
 
 				// Use parseAsync to ensure async variables like {{transcript}} are available.
 				// If it hangs (e.g. another extension has corrupted fetch), fall back to sync parse.
-				const defuddle = new Defuddle(document, { url: document.URL });
+				const isXhsNote = process.env.TARGET_BROWSER === 'chrome' && isXhsNoteUrl(document.URL);
+				const extractionDocument = isXhsNote
+					? createXhsPostExtractionDocument(document, document.URL)
+					: document;
+				const defuddle = new Defuddle(extractionDocument, { url: document.URL });
 				const parseTimeout = new Promise<never>((_, reject) =>
 					setTimeout(() => reject(new Error('parseAsync timeout')), 8000)
 				);
@@ -229,16 +247,18 @@ declare global {
 
 				// XHS keeps the main note's carousel in note.imageList and comments in
 				// a separate state branch. Only send that trusted note-level list to OCR.
-				if (process.env.TARGET_BROWSER === 'chrome' && isXhsNoteUrl(document.URL)) {
+				if (isXhsNote) {
 					extractedContent.imageText = '';
-					xhsOcr = await extractXhsMainImages(document, document.URL) || undefined;
+					// Read only the state already embedded in the page here. A network
+					// fallback is requested after the clip card has been persisted.
+					xhsOcr = extractXhsMainImagesFromDocument(document, document.URL) || undefined;
 					if (xhsOcr?.images[0]?.url) extractedContent.xhsPostImage = xhsOcr.images[0].url;
 				}
 
 				// Create a new DOMParser
 				const parser = new DOMParser();
 				// Parse the document's HTML
-				const doc = parser.parseFromString(document.documentElement.outerHTML, 'text/html');
+				const doc = parser.parseFromString(extractionDocument.documentElement.outerHTML, 'text/html');
 
 				// Remove all script and style elements
 				doc.querySelectorAll('script, style').forEach(el => el.remove());

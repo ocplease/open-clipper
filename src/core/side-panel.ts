@@ -1,7 +1,12 @@
 import { SavedClip } from '../types/types';
 import browser from '../utils/browser-polyfill';
 import { addBrowserClassToHtml } from '../utils/browser-detection';
-import { PreparedClip, prepareCurrentPageClip, updatePreparedClipImageText } from '../utils/clip-preparation';
+import {
+	PreparedClip,
+	prepareCurrentPageClip,
+	updatePreparedClipImageText,
+	updatePreparedClipXhsImages,
+} from '../utils/clip-preparation';
 import { copyToClipboard } from '../utils/clipboard-utils';
 import { getMessage, setupLanguageAndDirection, translatePage } from '../utils/i18n';
 import { initializeIcons } from '../icons/icons';
@@ -20,6 +25,7 @@ import { renderMarkdownPreview } from '../utils/markdown-preview';
 import { getSavedClipImageCandidates } from '../utils/clip-image';
 import { incrementStat, setLocalStorage } from '../utils/storage-utils';
 import { XhsOcrResponse } from '../utils/supabase-ocr';
+import { isXhsNoteUrl, XhsNoteImages } from '../utils/xhs-images';
 
 let clips: SavedClip[] = [];
 let selectedClipIds = new Set<string>();
@@ -516,7 +522,9 @@ async function clipCurrentPage(): Promise<void> {
 		await addSavedClip(savedClip);
 		await loadClips();
 		setStatus(getMessage('pageClipped'), 'success', 3000);
-		if (prepared.deferredOcr) void completeDeferredOcr(savedClip, prepared);
+		if (prepared.deferredOcr || (process.env.TARGET_BROWSER === 'chrome' && isXhsNoteUrl(prepared.url))) {
+			void completeDeferredOcr(savedClip, prepared);
+		}
 	} catch (error) {
 		console.error('Unable to clip current page:', error);
 		setStatus(getMessage('failedToClipCurrentPage'), 'error');
@@ -527,12 +535,35 @@ async function clipCurrentPage(): Promise<void> {
 }
 
 async function completeDeferredOcr(savedClip: SavedClip, prepared: PreparedClip): Promise<void> {
-	if (!prepared.deferredOcr) return;
 	try {
+		let preparedWithImages = prepared;
+		if (!preparedWithImages.deferredOcr) {
+			const discovery = await browser.runtime.sendMessage({
+				action: 'sendMessageToTab',
+				tabId: prepared.tabId,
+				message: { action: 'getXhsMainImages', pageUrl: prepared.url },
+			}) as { success?: boolean; xhsOcr?: XhsNoteImages | null; error?: string };
+			if (discovery?.success === false) throw new Error(discovery.error || 'Unable to discover XHS images');
+			if (!discovery?.xhsOcr) return;
+
+			preparedWithImages = await updatePreparedClipXhsImages(prepared, discovery.xhsOcr);
+			const imageUpdatedClip = createSavedClipFromVariables(
+				preparedWithImages.fileContent,
+				preparedWithImages.template,
+				preparedWithImages.variables,
+				preparedWithImages.vault,
+				preparedWithImages.path,
+			);
+			await updateSavedClip({ ...imageUpdatedClip, id: savedClip.id, createdAt: savedClip.createdAt });
+			await loadClips();
+		}
+
+		const deferredOcr = preparedWithImages.deferredOcr;
+		if (!deferredOcr) return;
 		const response = await browser.runtime.sendMessage({
 			action: 'recognizeXhsImages',
-			noteId: prepared.deferredOcr.noteId,
-			images: prepared.deferredOcr.images,
+			noteId: deferredOcr.noteId,
+			images: deferredOcr.images,
 		}) as XhsOcrResponse;
 		if (!response.success) {
 			if (response.warnings?.length) console.warn('[Open Clipper] XHS OCR diagnostics:', response.warnings);
@@ -542,7 +573,7 @@ async function completeDeferredOcr(savedClip: SavedClip, prepared: PreparedClip)
 				: response.error || 'Image recognition failed');
 		}
 
-		const finalized = await updatePreparedClipImageText(prepared, response.imageText);
+		const finalized = await updatePreparedClipImageText(preparedWithImages, response.imageText);
 		const updated = createSavedClipFromVariables(
 			finalized.fileContent,
 			finalized.template,

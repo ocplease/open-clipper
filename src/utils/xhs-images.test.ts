@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, test, vi } from 'vitest';
 import {
+	createXhsPostExtractionDocument,
 	extractXhsImagesFromState,
 	extractXhsMainImages,
+	extractXhsMainImagesFromDocument,
 	normalizeInitialStateJson,
 } from './xhs-images';
 
@@ -78,6 +80,35 @@ describe('XHS main-note image extraction', () => {
 
 		expect(result?.images).toHaveLength(3);
 		expect(fetchPage).toHaveBeenCalledWith(PAGE_URL, { credentials: 'include' });
+	});
+
+	test('can inspect embedded state without starting the fallback page fetch', () => {
+		const emptyDocument = new DOMParser().parseFromString('<html><body></body></html>', 'text/html');
+
+		expect(extractXhsMainImagesFromDocument(emptyDocument, PAGE_URL)).toBeNull();
+		expect(extractXhsMainImagesFromDocument(documentWithState(state(2)), PAGE_URL)?.images).toHaveLength(2);
+	});
+
+	test('scopes feed-modal extraction to the current post', () => {
+		const doc = new DOMParser().parseFromString(`
+			<html><body>
+				<main class="feeds-page"><img src="https://sns-webpic-qc.xhscdn.com/other-post.jpg"></main>
+				<div class="note-detail-mask">
+					<div class="note-container">
+						<div class="media-container"><img src="https://sns-webpic-qc.xhscdn.com/current-post.jpg"></div>
+						<div class="note-content"><h1>Current post</h1><p>Current post body</p></div>
+						<div class="comments-container"><img src="https://sns-webpic-qc.xhscdn.com/comment.jpg"></div>
+					</div>
+				</div>
+			</body></html>
+		`, 'text/html');
+
+		const scoped = createXhsPostExtractionDocument(doc, PAGE_URL);
+
+		expect(scoped.body.textContent).toContain('Current post body');
+		expect(scoped.body.innerHTML).toContain('current-post.jpg');
+		expect(scoped.body.innerHTML).not.toContain('other-post.jpg');
+		expect(scoped.body.innerHTML).not.toContain('comment.jpg');
 	});
 
 	test('rejects untrusted image hosts and deduplicates file IDs', () => {

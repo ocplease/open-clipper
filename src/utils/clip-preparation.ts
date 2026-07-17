@@ -116,9 +116,12 @@ export async function prepareCurrentPageClip(tabId: number): Promise<ClipPrepara
 	};
 }
 
-export async function updatePreparedClipImageText(prepared: PreparedClip, imageText: string): Promise<PreparedClip> {
+async function updatePreparedClipVariables(
+	prepared: PreparedClip,
+	updates: Record<string, string>,
+): Promise<PreparedClip> {
 	const settings = await loadSettings();
-	const variables = { ...prepared.variables, '{{imageText}}': imageText };
+	const variables = { ...prepared.variables, ...updates };
 	const typeMap = new Map(settings.propertyTypes.map(type => [type.name, type.type]));
 	const [compiledProperties, noteName, path, noteContent] = await Promise.all([
 		Promise.all(prepared.template.properties.map(async property => {
@@ -142,4 +145,22 @@ export async function updatePreparedClipImageText(prepared: PreparedClip, imageT
 		noteName: noteName.trim(),
 		path,
 	};
+}
+
+export async function updatePreparedClipXhsImages(
+	prepared: PreparedClip,
+	xhsOcr: XhsNoteImages,
+): Promise<PreparedClip> {
+	const firstImage = xhsOcr.images[0]?.url;
+	return {
+		...await updatePreparedClipVariables(
+			prepared,
+			firstImage ? { '{{xhsPostImage}}': firstImage } : {},
+		),
+		deferredOcr: xhsOcr,
+	};
+}
+
+export async function updatePreparedClipImageText(prepared: PreparedClip, imageText: string): Promise<PreparedClip> {
+	return updatePreparedClipVariables(prepared, { '{{imageText}}': imageText });
 }

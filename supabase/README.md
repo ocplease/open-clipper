@@ -10,4 +10,4 @@ Before deploying:
 4. Store the Gemini credential only in Supabase: `supabase secrets set GEMINI_API_KEY=...`.
 5. Deploy with `supabase functions deploy recognize-xhs-images`.
 
-`GEMINI_MODEL` is optional and defaults to `gemini-3.5-flash`. Images and OCR output are processed transiently; only daily quota counters are stored.
+Image recognition first uses `gemini-3.1-flash-lite`. If the model API reports quota exhaustion, it falls back to `gemma-4-31b-it`, then `gemma-4-26b-a4b-it`. Images and OCR output are processed transiently; only daily quota counters are stored.
